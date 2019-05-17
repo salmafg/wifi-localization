@@ -16,7 +16,6 @@ def estimate_distance(rss):
     rss = int(round(rss))
     result = (27.55 - (20 * math.log10(2400)) + abs(rss)) / 20
     d = math.pow(10, result)
-    # d = -0.1555 * d + 5.9628
     return d
 
 # Query data from AWS using mac address
