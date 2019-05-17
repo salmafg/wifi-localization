@@ -3,21 +3,17 @@ TRILATERATION = {
     'APs': [
         {
             'id': 21,
-            'xy': (0, 0, 0),
-            'start_timestamp': '16 May 2019 15:02',
-            'end_timestamp': '16 May 2019 15:05'
+            'xy': (0, 0)
         },
         {
             'id': 55,
-            'xy': (-0.676, 3.337, 0),
-            'start_timestamp': '16 May 2019 15:02',
-            'end_timestamp': '16 May 2019 15:05'
+            'xy': (3.150, -0.470)
         },
         {
             'id': 57,
-            'xy': (3.077, 0.877, 0),
-            'start_timestamp': '16 May 2019 15:02',
-            'end_timestamp': '16 May 2019 15:05'
+            'xy': (4.898, 7.00)
         }
-    ]
+    ],
+    'start_timestamp': '17 May 2019 16:16',
+    'end_timestamp': '17 May 2019 16:19'
 }

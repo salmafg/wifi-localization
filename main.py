@@ -16,7 +16,7 @@ def estimate_distance(rss):
     rss = int(round(rss))
     result = (27.55 - (20 * math.log10(2400)) + abs(rss)) / 20
     d = math.pow(10, result)
-    # y = -0.1555 * d + 5.9628
+    # d = -0.1555 * d + 5.9628
     return d
 
 # Query data from AWS using mac address
@@ -27,9 +27,9 @@ def get_data_by_mac_address(mac, APs):
     for ap in APs:
 
         start_timestamp = datetime.strptime(
-            ap['start_timestamp'], '%d %b %Y %H:%M')
+            TRILATERATION['start_timestamp'], '%d %b %Y %H:%M')
         end_timestamp = datetime.strptime(
-            ap['end_timestamp'], '%d %b %Y %H:%M')
+            TRILATERATION['end_timestamp'], '%d %b %Y %H:%M')
 
         start_in_sec = int(round(start_timestamp.timestamp()))
         end_in_sec = int(round(end_timestamp.timestamp()))
@@ -76,41 +76,41 @@ def compute_median_rss_for_mac_address(response, mac):
 # https://bit.ly/2EbDLSC
 def trilaterate(P1, P2, P3, r1, r2, r3):
 
-    p1 = np.array([0, 0, 0])
-    p2 = np.array([P2[0] - P1[0], P2[1] - P1[1], P2[2] - P1[2]])
-    p3 = np.array([P3[0] - P1[0], P3[1] - P1[1], P3[2] - P1[2]])
-    v1 = p2 - p1
-    v2 = p3 - p1
+    # p1 = np.array([0, 0, 0])
+    # p2 = np.array([P2[0] - P1[0], P2[1] - P1[1], P2[2] - P1[2]])
+    # p3 = np.array([P3[0] - P1[0], P3[1] - P1[1], P3[2] - P1[2]])
+    # v1 = p2 - p1
+    # v2 = p3 - p1
 
-    Xn = (v1)/np.linalg.norm(v1)
+    # Xn = (v1)/np.linalg.norm(v1)
 
-    tmp = np.cross(v1, v2)
+    # tmp = np.cross(v1, v2)
 
-    Zn = (tmp)/np.linalg.norm(tmp)
+    # Zn = (tmp)/np.linalg.norm(tmp)
 
-    Yn = np.cross(Xn, Zn)
+    # Yn = np.cross(Xn, Zn)
 
-    i = np.dot(Xn, v2)
-    d = np.dot(Xn, v1)
-    j = np.dot(Yn, v2)
+    # i = np.dot(Xn, v2)
+    # d = np.dot(Xn, v1)
+    # j = np.dot(Yn, v2)
 
-    X = ((r1**2)-(r2**2)+(d**2))/(2*d)
-    Y = (((r1**2)-(r3**2)+(i**2)+(j**2))/(2*j))-((i/j)*(X))
-    Z1 = np.sqrt(max(0, r1**2-X**2-Y**2))
-    Z2 = -Z1
+    # X = ((r1**2)-(r2**2)+(d**2))/(2*d)
+    # Y = (((r1**2)-(r3**2)+(i**2)+(j**2))/(2*j))-((i/j)*(X))
+    # Z1 = np.sqrt(max(0, r1**2-X**2-Y**2))
+    # Z2 = -Z1
 
-    K1 = P1 + X * Xn + Y * Yn + Z1 * Zn
-    K2 = p1 + X * Xn + Y * Yn - Z2 * Zn
-    return K1
-    # A = 2*P2[0] - 2*P1[0]
-    # B = 2*P2[1] - 2*P1[1]
-    # C = r1**2 - r2**2 - P1[0]**2 + P2[0]**2 - P1[1]**2 + P2[1]**2
-    # D = 2*P3[0] - 2*P2[0]
-    # E = 2*P3[1] - 2*P2[1]
-    # F = r2**2 - r3**2 - P2[0]**2 + P3[0]**2 - P2[1]**2 + P3[1]**2
-    # x = (C*E - F*B) / (E*A - B*D)
-    # y = (C*D - A*F) / (B*D - A*E)
-    # return (x, y)
+    # K1 = P1 + X * Xn + Y * Yn + Z1 * Zn
+    # K2 = p1 + X * Xn + Y * Yn - Z2 * Zn
+    # return K1
+    A = 2*P2[0] - 2*P1[0]
+    B = 2*P2[1] - 2*P1[1]
+    C = r1**2 - r2**2 - P1[0]**2 + P2[0]**2 - P1[1]**2 + P2[1]**2
+    D = 2*P3[0] - 2*P2[0]
+    E = 2*P3[1] - 2*P2[1]
+    F = r2**2 - r3**2 - P2[0]**2 + P3[0]**2 - P2[1]**2 + P3[1]**2
+    x = (C*E - F*B) / (E*A - B*D)
+    y = (C*D - A*F) / (B*D - A*E)
+    return (x, y)
 
 
 dict_of_avgs_rss = get_data_by_mac_address(

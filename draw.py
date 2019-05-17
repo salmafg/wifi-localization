@@ -1,6 +1,8 @@
 import turtle
 from random import randint
 
+WIDTH, HEIGHT = 10, 10
+
 def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   
   myPen = turtle.Turtle()
@@ -30,6 +32,23 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   myPen.pendown()
   myPen.circle(scale*r1)
   myPen.penup()
+
+  # Green center
+  myPen.color("#52bf54")
+  myPen.goto(scale*x3-5, scale*y3)
+  myPen.pendown()
+  myPen.goto(scale*x3+5, scale*y3)
+  myPen.penup()
+  myPen.goto(scale*x3, scale*y3-5)
+  myPen.pendown()
+  myPen.goto(scale*x3, scale*y3+5)
+  myPen.penup()
+  
+  # Green circle
+  myPen.goto(scale*x3, scale*(y3-r3))
+  myPen.pendown()
+  myPen.circle(scale*r3)
+  myPen.penup()
   
   # Blue center
   myPen.color("#41befc")
@@ -48,23 +67,6 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   myPen.pendown()
   myPen.circle(scale*r2)
   myPen.penup()
-  
-  # Green center
-  myPen.color("#52bf54")
-  myPen.goto(scale*x3-5, scale*y3)
-  myPen.pendown()
-  myPen.goto(scale*x3+5, scale*y3)
-  myPen.penup()
-  myPen.goto(scale*x3, scale*y3-5)
-  myPen.pendown()
-  myPen.goto(scale*x3, scale*y3+5)
-  myPen.penup()
-  
-  # Green circle
-  myPen.goto(scale*x3, scale*(y3-r3))
-  myPen.pendown()
-  myPen.circle(scale*r3)
-  myPen.penup()
 
   # Localization
   myPen.color("#000000")
@@ -77,4 +79,4 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   myPen.goto(scale*l[0], scale*l[1]+5)
   myPen.penup()
   
-  turtle.done()
+  window.exitonclick()
