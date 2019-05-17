@@ -24,19 +24,22 @@ def get_data_by_mac_address(mac, APs):
 
     for ap in APs:
 
-        start_timestamp = datetime.strptime(ap['start_timestamp'], '%d %b %Y %H:%M')
-        end_timestamp = datetime.strptime(ap['end_timestamp'], '%d %b %Y %H:%M')
+        start_timestamp = datetime.strptime(
+            ap['start_timestamp'], '%d %b %Y %H:%M')
+        end_timestamp = datetime.strptime(
+            ap['end_timestamp'], '%d %b %Y %H:%M')
 
         start_in_sec = int(round(start_timestamp.timestamp()))
         end_in_sec = int(round(end_timestamp.timestamp()))
 
-        #now_in_sec = int(round(datetime.now().timestamp()))
+        # now_in_sec = int(round(datetime.now().timestamp()))
 
         response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
             & Key('timestamp').between(start_in_sec, end_in_sec))
         avg_rss = compute_avg_rss_for_mac_address(response, mac)
         dict_of_avgs_rss[ap['id']] = avg_rss
     return dict_of_avgs_rss
+
 
 def compute_avg_rss_for_mac_address(response, mac):
 
@@ -54,8 +57,6 @@ def compute_avg_rss_for_mac_address(response, mac):
 # https://bit.ly/2w3ybNU
 # https://bit.ly/2EbDLSC
 def trilaterate(P1, P2, P3, r1, r2, r3):
-
-    draw_trilateration(P1[0], P1[1], r1, P2[0], P2[1], r2, P3[0], P3[1], r3)
 
     p1 = np.array([0, 0, 0])
     p2 = np.array([P2[0] - P1[0], P2[1] - P1[1], P2[2] - P1[2]])
@@ -93,11 +94,20 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
     # y = (C*D - A*F) / (B*D - A*E)
     # return (x, y)
 
-dict_of_avgs_rss = get_data_by_mac_address(TRILATERATION['mac'], TRILATERATION['APs'])
+
+dict_of_avgs_rss = get_data_by_mac_address(
+    TRILATERATION['mac'], TRILATERATION['APs'])
 dict_of_estimated_distances = {}
 for ap, rss in dict_of_avgs_rss.items():
     estimated_distance = estimate_distance(rss)
     dict_of_estimated_distances[ap] = estimate_distance(rss)
-    print('The estimated distance of the AP %d is %f' % (ap, estimated_distance))
-print(trilaterate(P1=(0, 0, 0), P2=(-0.676, 3.337, -0.313), P3=(3.077, 0.877, -0.313),
- r1=dict_of_estimated_distances[21], r2=dict_of_estimated_distances[55], r3=dict_of_estimated_distances[57]))
+    print('The estimated distance of the AP %d is %f' %
+          (ap, estimated_distance))
+P1 = TRILATERATION['APs'][0]['xyz']
+P2 = TRILATERATION['APs'][1]['xyz']
+P3 = TRILATERATION['APs'][2]['xyz']
+r1 = dict_of_estimated_distances[TRILATERATION['APs'][0]['id']]
+r2 = dict_of_estimated_distances[TRILATERATION['APs'][1]['id']]
+r3 = dict_of_estimated_distances[TRILATERATION['APs'][2]['id']]
+print(trilaterate(P1, P2, P3, r1, r2, r3))
+draw_trilateration(P1[0], P1[1], r1, P2[0], P2[1], r2, P3[0], P3[1], r3)
