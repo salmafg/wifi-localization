@@ -1,7 +1,7 @@
 import turtle
 from random import randint
 
-def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3):
+def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   
   myPen = turtle.Turtle()
   myPen.hideturtle()
@@ -64,6 +64,17 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3):
   myPen.goto(scale*x3, scale*(y3-r3))
   myPen.pendown()
   myPen.circle(scale*r3)
+  myPen.penup()
+
+  # Localization
+  myPen.color("#000000")
+  myPen.goto(scale*l[0]-5, scale*l[1])
+  myPen.pendown()
+  myPen.goto(scale*l[0]+5, scale*l[1])
+  myPen.penup()
+  myPen.goto(scale*l[0], scale*l[1]-5)
+  myPen.pendown()
+  myPen.goto(scale*l[0], scale*l[1]+5)
   myPen.penup()
   
   turtle.done()
