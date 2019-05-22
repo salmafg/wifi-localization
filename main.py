@@ -7,16 +7,34 @@ import math
 import statistics
 from config import TRILATERATION
 from draw import draw_trilateration
+from rssi import RSSI_Localizer
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
 
 # http://goo.gl/cGXmDw
-def estimate_distance(rss):
+def estimate_distance_fspl(rss):
     rss = int(round(rss))
-    result = (27.55 - (20 * math.log10(2400)) + abs(rss)) / 20
-    d = math.pow(10, result)
+    logd = (27.55 - (20 * math.log10(2400)) + abs(rss)) / 20
+    d = 3*math.pow(10, logd)
     return d
+
+# https://en.wikipedia.org/wiki/ITU_model_for_indoor_attenuation
+def estimate_distance_itu(rss):
+    rss = int(round(rss))
+    f = 2400
+    p_fn = 4
+    N = 28
+    logd = (abs(rss) - (20 * math.log10(f) + p_fn - 28)) / N
+    d = 3*math.pow(10, logd)
+    return d
+
+# https://pypi.org/project/rssi/
+def estimate_distance_log(rssi_localizer, dict_of_rss):
+    distances = rssi_localizer.getDistancesForAllAPs(
+        list(dict_of_rss.values()))
+    print(distances)
+    return distances
 
 # Query data from AWS using mac address
 def get_data_by_mac_address(mac, APs):
@@ -36,7 +54,7 @@ def get_data_by_mac_address(mac, APs):
         # now_in_sec = int(round(datetime.now().timestamp()))
 
         response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-            & Key('timestamp').between(start_in_sec, end_in_sec))
+                                  & Key('timestamp').between(start_in_sec, end_in_sec))
 
         # avg_rss = compute_avg_rss_for_mac_address(response, mac)
         # dict_of_processed_rss[ap['id']] = avg_rss
@@ -60,6 +78,7 @@ def compute_avg_rss_for_mac_address(response, mac):
     print(avg_rss)
     return avg_rss
 
+
 def compute_median_rss_for_mac_address(response, mac):
 
     rss_values = []
@@ -75,32 +94,6 @@ def compute_median_rss_for_mac_address(response, mac):
 # https://bit.ly/2EbDLSC
 def trilaterate(P1, P2, P3, r1, r2, r3):
 
-    # p1 = np.array([0, 0, 0])
-    # p2 = np.array([P2[0] - P1[0], P2[1] - P1[1], P2[2] - P1[2]])
-    # p3 = np.array([P3[0] - P1[0], P3[1] - P1[1], P3[2] - P1[2]])
-    # v1 = p2 - p1
-    # v2 = p3 - p1
-
-    # Xn = (v1)/np.linalg.norm(v1)
-
-    # tmp = np.cross(v1, v2)
-
-    # Zn = (tmp)/np.linalg.norm(tmp)
-
-    # Yn = np.cross(Xn, Zn)
-
-    # i = np.dot(Xn, v2)
-    # d = np.dot(Xn, v1)
-    # j = np.dot(Yn, v2)
-
-    # X = ((r1**2)-(r2**2)+(d**2))/(2*d)
-    # Y = (((r1**2)-(r3**2)+(i**2)+(j**2))/(2*j))-((i/j)*(X))
-    # Z1 = np.sqrt(max(0, r1**2-X**2-Y**2))
-    # Z2 = -Z1
-
-    # K1 = P1 + X * Xn + Y * Yn + Z1 * Zn
-    # K2 = p1 + X * Xn + Y * Yn - Z2 * Zn
-    # return K1
     A = 2*P2[0] - 2*P1[0]
     B = 2*P2[1] - 2*P1[1]
     C = r1**2 - r2**2 - P1[0]**2 + P2[0]**2 - P1[1]**2 + P2[1]**2
@@ -112,20 +105,35 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
     return (x, y)
 
 
-dict_of_avgs_rss = get_data_by_mac_address(
-    TRILATERATION['mac'], TRILATERATION['APs'])
-dict_of_estimated_distances = {}
-for ap, rss in dict_of_avgs_rss.items():
-    estimated_distance = estimate_distance(rss)
-    dict_of_estimated_distances[ap] = estimate_distance(rss)
-    print('The estimated distance of the AP %d is %f' %
-          (ap, estimated_distance))
-P1 = TRILATERATION['APs'][0]['xy']
-P2 = TRILATERATION['APs'][1]['xy']
-P3 = TRILATERATION['APs'][2]['xy']
-r1 = dict_of_estimated_distances[TRILATERATION['APs'][0]['id']]
-r2 = dict_of_estimated_distances[TRILATERATION['APs'][1]['id']]
-r3 = dict_of_estimated_distances[TRILATERATION['APs'][2]['id']]
-localization = trilaterate(P1, P2, P3, r1, r2, r3)
-print(localization)
-draw_trilateration(P1[0], P1[1], r1, P2[0], P2[1], r2, P3[0], P3[1], r3, localization)
+def main():
+
+    # Query RSS data by mac address
+    dict_of_rss = get_data_by_mac_address(
+        TRILATERATION['mac'], TRILATERATION['APs'])
+
+    # Distance estimation using FSPL/ITU
+    dict_of_fspl_distances = {}
+    for ap, rss in dict_of_rss.items():
+        estimated_distance = estimate_distance_fspl(rss)
+        dict_of_fspl_distances[ap] = estimated_distance
+        print('The estimated distance of the AP %d is %f' %
+              (ap, estimated_distance))
+
+    drawing = {}
+    for i in range(0, len(TRILATERATION['APs'])):
+        drawing["P{0}".format(i+1)] = TRILATERATION['APs'][i]['xy']
+        drawing["r{0}".format(i+1)] = dict_of_fspl_distances[TRILATERATION['APs'][i]['id']]
+    print(drawing)
+
+    # Trilateration
+    localization = trilaterate(
+        drawing['P1'], drawing['P2'], drawing['P3'], drawing['r1'], drawing['r2'], drawing['r3'])
+    
+    # Draw
+    print(localization)
+    draw_trilateration(drawing['P1'][0], drawing['P1'][1], drawing['r1'], drawing['P2'][0], drawing['P2'][1],
+                       drawing['r2'], drawing['P3'][0], drawing['P3'][1], drawing['r3'], localization)
+
+
+if __name__ == "__main__":
+    main()

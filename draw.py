@@ -45,7 +45,7 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   myPen.goto(scale*x2, scale*y2+5)
   myPen.penup()
   
-  # Blue circle
+  # Green circle
   myPen.goto(scale*x2, scale*(y2-r2))
   myPen.pendown()
   myPen.circle(scale*r2)
