@@ -80,3 +80,4 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   myPen.penup()
   
   window.exitonclick()
+  window.update()
