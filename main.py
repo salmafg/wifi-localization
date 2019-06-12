@@ -6,21 +6,28 @@ import numpy as np
 import math
 import statistics
 from config import TRILATERATION
-from draw import draw_trilateration
-from rssi import RSSI_Localizer
+from draw import draw
+import scipy
+from scipy.optimize import least_squares
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
 
-# http://goo.gl/cGXmDw
+
 def estimate_distance_fspl(rss):
+    """
+    http://goo.gl/cGXmDw
+    """
     rss = int(round(rss))
     logd = (27.55 - (20 * math.log10(2400)) + abs(rss)) / 20
     d = math.pow(10, logd)
     return d
 
-# https://en.wikipedia.org/wiki/ITU_model_for_indoor_attenuation
+
 def estimate_distance_itu(rss):
+    """
+    https://en.wikipedia.org/wiki/ITU_model_for_indoor_attenuation
+    """
     rss = int(round(rss))
     f = 2400
     p_fn = 4
@@ -29,8 +36,11 @@ def estimate_distance_itu(rss):
     d = math.pow(10, logd)
     return d
 
-# https://en.wikipedia.org/wiki/Log-distance_path_loss_model
+
 def estimate_distance_log(rss, gamma):
+    """
+    https://en.wikipedia.org/wiki/Log-distance_path_loss_model
+    """
     rss = int(round(rss))
     pl0 = -29
     d0 = 1
@@ -41,24 +51,70 @@ def estimate_distance_log(rss, gamma):
     d = dd0 * d0
     return d
 
+
 def parameter_fitting(dict_of_rss):
     gammas = np.arange(2.0, 6.0, 0.1)
     for gamma in gammas:
         print("For gamma = ", gamma)
-        dict_of_fspl_distances = {}
+        dict_of_distances = {}
         for ap, rss in dict_of_rss.items():
             estimated_distance = estimate_distance_log(rss, gamma)
-            dict_of_fspl_distances[ap] = estimated_distance
+            dict_of_distances[ap] = estimated_distance
             print('The estimated distance of the AP %d is %f' %
-                (ap, estimated_distance))
+                  (ap, estimated_distance))
+
+
+# def scale_distance(x1, y1, r1, x2, y2, r2, x3, y3, r3):
+
+#     r12 = r2**2 * r1**2
+#     r23 = r3**2 * r2**2
+#     r31 = r1**2 * r3**2
+
+#     a12 = 2*(r1**2 * x2 - r2**2 * x1)
+#     b12 = 2*(r1**2 * y2 - r2**2 * y1)
+#     c12 = r1**2*x2**2 + r1**2*y2**2 - r2**2*x1**2 - r2**2*y1**2
+
+#     a23 = 2*(r2**2 * x3 - r3**2 * x2)
+#     b23 = 2*(r2**2 * y3 - r3**2 * y2)
+#     c23 = r2**2*x3**2 + r2**2*y3**2 - r3**2*x2**2 - r3**2*y2**2
+
+#     a31 = 2*(r3**2 * x1 - r1**2 * x3)
+#     b31 = 2*(r3**2 * y1 - r1**2 * y3)
+#     c31 = r3**2*x1**2 + r3**2*y1**2 - r1**2*x3**2 - r1**2*y3**2
+
+#     det = (a12*r23 - a23*r12)*(b23*r31 - b31*r23) - \
+#         (a23*r31 - a31*r23) * (b12*r23 - b23*r12)
+
+#     print("det: ", det)
+#     print("den: ", a12 * b23 - a23 * b12)
+
+#     if r1 == r2 and r2 == r3 and r1 == r3 and a12 * b23 - a23 * b12 == 0:
+#         print("equal")
+#         return -1
+#     if r1 != r2 or r2 != r3 or r1 != r3 and det == 0:
+#         print("unequal")
+#         print(r1 != r2)
+#         return -1
+
+#     x = ((c12*r23 - c23*r12)*(b23*r31 - b31*r23) -
+#          (c23*r31 - c31*r23)*(b12*r23 - b23*r12)) / det
+#     y = ((a12*r23 - a23*r12)*(c23*r31 - c31*r23) -
+#          (a23*r31 - a31*r23)*(c12*r23 - c23*r12)) / det
+
+#     k = compute_distance((x, y), (x1, y1)) / r1
+
+#     return k
+
 
 def compute_distance(p1, p2):
     distance = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
     return distance
 
-# Query data from AWS using mac address
-def get_data_by_mac_address(mac, APs):
 
+def get_data_by_mac_address(mac, APs):
+    """
+    Query data from AWS using mac address
+    """
     dict_of_processed_rss = {}
 
     for ap in APs:
@@ -95,7 +151,7 @@ def compute_avg_rss_for_mac_address(response, mac):
             sum_rss = sum_rss + r['payload']['rssi']
             count_rss += 1
     avg_rss = sum_rss / count_rss
-    print(avg_rss)
+    # print(avg_rss)
     return avg_rss
 
 
@@ -107,15 +163,17 @@ def compute_median_rss_for_mac_address(response, mac):
             # print(r['payload'])
             rss_values.append(r['payload']['rssi'])
     median_rss = statistics.median(rss_values)
-    print(median_rss)
+    # print(median_rss)
     return median_rss
 
-# https://bit.ly/2w3ybNU
-# https://bit.ly/2EbDLSC
-def trilaterate(P1, P2, P3, r1, r2, r3):
 
-    A = 2*P2[0] - 2*P1[0]
-    B = 2*P2[1] - 2*P1[1]
+def trilaterate(P1, P2, P3, r1, r2, r3):
+    """
+    https://bit.ly/2w3ybNU
+    https://bit.ly/2EbDLSC
+    """
+    A = 2*P2[0] - 2*P1[0]  # 2(x2) - 2(x1)
+    B = 2*P2[1] - 2*P1[1]  # 2(y2) - 2(y1)
     C = r1**2 - r2**2 - P1[0]**2 + P2[0]**2 - P1[1]**2 + P2[1]**2
     D = 2*P3[0] - 2*P2[0]
     E = 2*P3[1] - 2*P2[1]
@@ -125,6 +183,20 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
     return (x, y)
 
 
+def equations(guess):
+    x, y = guess
+    return(
+        (x - m['P1'][0])**2 + (y - m['P1'][1])**2,
+        (x - m['P2'][0])**2 + (y - m['P2'][1])**2,
+        (x - m['P3'][0])**2 + (y - m['P3'][1])**2
+    )
+
+
+def trilaterate_least_squares(guess):
+    ls = least_squares(equations, guess)
+    return(ls.x)
+
+
 def main():
 
     # Query RSS data by mac address
@@ -132,29 +204,34 @@ def main():
         TRILATERATION['mac'], TRILATERATION['APs'])
 
     # Distance estimation
-    dict_of_fspl_distances = {}
+    dict_of_distances = {}
     for ap, rss in dict_of_rss.items():
         # estimated_distance = estimate_distance_fspl(rss)
         # estimated_distance = estimate_distance_itu(rss)
         estimated_distance = estimate_distance_log(rss, 2.3)
-        dict_of_fspl_distances[ap] = estimated_distance
+        dict_of_distances[ap] = estimated_distance
         print('The estimated distance of the AP %d is %f' %
-            (ap, estimated_distance))
+              (ap, estimated_distance))
 
-    drawing = {}
+    global m
+    m = {}
     for i in range(0, len(TRILATERATION['APs'])):
-        drawing["P{0}".format(i+1)] = TRILATERATION['APs'][i]['xy']
-        drawing["r{0}".format(i+1)] = dict_of_fspl_distances[TRILATERATION['APs'][i]['id']]
-    print(drawing)
+        m["P{0}".format(i+1)] = TRILATERATION['APs'][i]['xy']
+        m["r{0}".format(
+            i+1)] = dict_of_distances[TRILATERATION['APs'][i]['id']]
+    print(m)
 
     # Trilateration
-    localization = trilaterate(
-        drawing['P1'], drawing['P2'], drawing['P3'], drawing['r1'], drawing['r2'], drawing['r3'])
-    
+    estimated_localization = trilaterate(
+        m['P1'], m['P2'], m['P3'], m['r1'], m['r2'], m['r3'])
+    localization = trilaterate_least_squares(estimated_localization)
+    print("Trilateration estimation: ", estimated_localization)
+    print("NLS estimation: ", tuple(localization))
+
     # Draw
-    print(localization)
-    draw_trilateration(drawing['P1'][0], drawing['P1'][1], drawing['r1'], drawing['P2'][0], drawing['P2'][1],
-                    drawing['r2'], drawing['P3'][0], drawing['P3'][1], drawing['r3'], localization)
+    draw(m['P1'][0], m['P1'][1], m['r1'], m['P2'][0], m['P2'][1],
+         m['r2'], m['P3'][0], m['P3'][1], m['r3'], estimated_localization,
+         localization)
 
 
 if __name__ == "__main__":

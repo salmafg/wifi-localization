@@ -3,7 +3,7 @@ from random import randint
 
 WIDTH, HEIGHT = 10, 10
 
-def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
+def draw(x1, y1, r1, x2, y2, r2, x3, y3, r3, el, l):
   
   myPen = turtle.Turtle()
   myPen.hideturtle()
@@ -13,7 +13,7 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   window = turtle.Screen()
   window.bgcolor("#F0F0F0")
   window.title("Trilateration")
-  scale = 50
+  scale = 60
 
   # Red center
   myPen.color("#ff5744")
@@ -68,6 +68,17 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   myPen.circle(scale*r3)
   myPen.penup()
 
+# Estimated localization
+  myPen.color("#800080")
+  myPen.goto(scale*el[0]-5, scale*el[1])
+  myPen.pendown()
+  myPen.goto(scale*el[0]+5, scale*el[1])
+  myPen.penup()
+  myPen.goto(scale*el[0], scale*el[1]-5)
+  myPen.pendown()
+  myPen.goto(scale*el[0], scale*el[1]+5)
+  myPen.penup()
+
   # Localization
   myPen.color("#000000")
   myPen.goto(scale*l[0]-5, scale*l[1])
@@ -80,4 +91,3 @@ def draw_trilateration(x1, y1, r1, x2, y2, r2, x3, y3, r3, l):
   myPen.penup()
   
   window.exitonclick()
-  window.update()
