@@ -1,6 +1,7 @@
 import boto3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
+from time import sleep
 import json
 import numpy as np
 import math
@@ -41,6 +42,7 @@ def estimate_distance_log(rss, gamma):
     """
     https://en.wikipedia.org/wiki/Log-distance_path_loss_model
     """
+    print(rss)
     rss = int(round(rss))
     pl0 = -29
     d0 = 1
@@ -111,7 +113,7 @@ def compute_distance(p1, p2):
     return distance
 
 
-def get_data_by_mac_address(mac, APs):
+def get_data_by_mac_address(mode, mac, APs):
     """
     Query data from AWS using mac address
     """
@@ -119,32 +121,39 @@ def get_data_by_mac_address(mac, APs):
 
     for ap in APs:
 
-        start_timestamp = datetime.strptime(
-            TRILATERATION['start_timestamp'], '%d %b %Y %H:%M')
-        end_timestamp = datetime.strptime(
-            TRILATERATION['end_timestamp'], '%d %b %Y %H:%M')
+        # Query historical data in a specified time range
+        if mode == "hist":
+            start_timestamp = datetime.strptime(
+                TRILATERATION['start_timestamp'], '%d %b %Y %H:%M')
+            end_timestamp = datetime.strptime(
+                TRILATERATION['end_timestamp'], '%d %b %Y %H:%M')
 
-        start_in_sec = int(round(start_timestamp.timestamp()))
-        end_in_sec = int(round(end_timestamp.timestamp()))
+            start_in_sec = int(round(start_timestamp.timestamp()))
+            end_in_sec = int(round(end_timestamp.timestamp()))
 
-        # now_in_sec = int(round(datetime.now().timestamp()))
+            response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
+                                      & Key('timestamp').between(start_in_sec, end_in_sec))
 
-        response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-                                  & Key('timestamp').between(start_in_sec, end_in_sec))
+            # rss = compute_avg_rss_for_mac_address(response, mac)
+            rss = compute_median_rss_for_mac_address(response, mac)
 
-        # avg_rss = compute_avg_rss_for_mac_address(response, mac)
-        # dict_of_processed_rss[ap['id']] = avg_rss
+        # Query real-time data
+        elif mode == "live":
+            now_in_sec = int(round(datetime.now().timestamp()))
+            response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
+                                      & Key('timestamp').eq(now_in_sec))
+            rss = get_live_rss_for_mac_address(response, mac)
+            if rss == -1: return {}
 
-        median_rss = compute_median_rss_for_mac_address(response, mac)
-        dict_of_processed_rss[ap['id']] = median_rss
+        dict_of_processed_rss[ap['id']] = rss
 
     return dict_of_processed_rss
 
 
 def compute_avg_rss_for_mac_address(response, mac):
-
     sum_rss = 0
     count_rss = 0
+    print(response)
     for r in response['Items']:
         if (r['payload']['mac']) == mac:
             # print(r['payload'])
@@ -156,7 +165,6 @@ def compute_avg_rss_for_mac_address(response, mac):
 
 
 def compute_median_rss_for_mac_address(response, mac):
-
     rss_values = []
     for r in response['Items']:
         if (r['payload']['mac']) == mac:
@@ -166,6 +174,12 @@ def compute_median_rss_for_mac_address(response, mac):
     # print(median_rss)
     return median_rss
 
+
+def get_live_rss_for_mac_address(response, mac):
+    for r in response['Items']:
+        if (r['payload']['mac']) == mac:
+            return r['payload']['rssi']
+    return -1
 
 def trilaterate(P1, P2, P3, r1, r2, r3):
     """
@@ -185,11 +199,10 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
 
 def equations(guess):
     x, y = guess
-    return(
-        (x - m['P1'][0])**2 + (y - m['P1'][1])**2,
-        (x - m['P2'][0])**2 + (y - m['P2'][1])**2,
-        (x - m['P3'][0])**2 + (y - m['P3'][1])**2
-    )
+    equations = ()
+    for i in range(0, len(TRILATERATION['APs'])):
+        equations += ((x - m["P{0}".format(i+1)][0]**2) + (y - m["P{0}".format(i+1)][1])**2,)
+    return equations
 
 
 def trilaterate_least_squares(guess):
@@ -197,11 +210,14 @@ def trilaterate_least_squares(guess):
     return(ls.x)
 
 
-def main():
-
+def run(mode):
     # Query RSS data by mac address
     dict_of_rss = get_data_by_mac_address(
-        TRILATERATION['mac'], TRILATERATION['APs'])
+        mode, TRILATERATION['mac'], TRILATERATION['APs'])
+
+    if not bool(dict_of_rss):
+        print("error: no real-time data found")
+        return
 
     # Distance estimation
     dict_of_distances = {}
@@ -232,6 +248,17 @@ def main():
     draw(m['P1'][0], m['P1'][1], m['r1'], m['P2'][0], m['P2'][1],
          m['r2'], m['P3'][0], m['P3'][1], m['r3'], estimated_localization,
          localization)
+
+
+def main():
+
+    # Mode 1: Trialteration on historical data
+    run("hist")
+
+    # Mode 2: Trilateration in real-time
+    # while(True):
+    #     run("live")
+    #     sleep(1)
 
 
 if __name__ == "__main__":
