@@ -65,7 +65,7 @@ def parameter_fitting(dict_of_rss):
                   (ap, estimated_distance))
 
 
-def compute_distance(p1, p2):
+def distance(p1, p2):
     distance = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
     return distance
 
@@ -165,7 +165,7 @@ def equations(guess):
         xi = m["P{0}".format(i+1)][0]
         yi = m["P{0}".format(i+1)][1]
         ri = m["r{0}".format(i+1)]
-        equations += (((x - xi)**2 + (y - yi)**2) / ri**2,)
+        equations += (distance((x, y), (xi, yi)) / ri**2,)
     return equations
 
 
