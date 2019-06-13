@@ -161,9 +161,11 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
 def equations(guess):
     x, y = guess
     equations = ()
-    for i in range(0, len(TRILATERATION['APs'])):
-        equations += ((x - m["P{0}".format(i+1)][0]**2) +
-                      (y - m["P{0}".format(i+1)][1])**2,)
+    for i in range(0, n):
+        xi = m["P{0}".format(i+1)][0]
+        yi = m["P{0}".format(i+1)][1]
+        ri = m["r{0}".format(i+1)]
+        equations += (((x - xi)**2 + (y - yi)**2) / ri**2,)
     return equations
 
 
@@ -192,9 +194,10 @@ def run(mode):
               (ap, estimated_distance))
 
     # Format data as a dictionary
-    global m
+    global m, n
     m = {}
-    for i in range(0, len(TRILATERATION['APs'])):
+    n = len(TRILATERATION['APs'])
+    for i in range(0, n):
         m["P{0}".format(i+1)] = TRILATERATION['APs'][i]['xy']
         m["r{0}".format(
             i+1)] = dict_of_distances[TRILATERATION['APs'][i]['id']]
@@ -202,9 +205,9 @@ def run(mode):
 
     # Trilateration
     estimated_localization = trilaterate(**m)
-    localization = trilaterate_least_squares((0, 0))
+    localization = trilaterate_least_squares(estimated_localization)
     print("Trilateration estimation: ", estimated_localization)
-    print("NLS estimation: ", tuple(localization))
+    print("NLS estimation: ", tuple(localization[:2]))
 
     # Draw
     draw(estimated_localization, localization, m)
