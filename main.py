@@ -141,9 +141,10 @@ def get_data_by_mac_address(mode, mac, APs):
         elif mode == "live":
             now_in_sec = int(round(datetime.now().timestamp()))
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-                                      & Key('timestamp').eq(now_in_sec))
+                                      & Key('timestamp').gte(now_in_sec-5))
             rss = get_live_rss_for_mac_address(response, mac)
-            if rss == -1: return {}
+            if rss == -1:
+                return {}
 
         dict_of_processed_rss[ap['id']] = rss
 
@@ -181,6 +182,7 @@ def get_live_rss_for_mac_address(response, mac):
             return r['payload']['rssi']
     return -1
 
+
 def trilaterate(P1, P2, P3, r1, r2, r3):
     """
     https://bit.ly/2w3ybNU
@@ -201,7 +203,8 @@ def equations(guess):
     x, y = guess
     equations = ()
     for i in range(0, len(TRILATERATION['APs'])):
-        equations += ((x - m["P{0}".format(i+1)][0]**2) + (y - m["P{0}".format(i+1)][1])**2,)
+        equations += ((x - m["P{0}".format(i+1)][0]**2) +
+                      (y - m["P{0}".format(i+1)][1])**2,)
     return equations
 
 
@@ -238,8 +241,7 @@ def run(mode):
     print(m)
 
     # Trilateration
-    estimated_localization = trilaterate(
-        m['P1'], m['P2'], m['P3'], m['r1'], m['r2'], m['r3'])
+    estimated_localization = trilaterate(**m)
     localization = trilaterate_least_squares(estimated_localization)
     print("Trilateration estimation: ", estimated_localization)
     print("NLS estimation: ", tuple(localization))
@@ -253,12 +255,12 @@ def run(mode):
 def main():
 
     # Mode 1: Trialteration on historical data
-    run("hist")
+    # run("hist")
 
     # Mode 2: Trilateration in real-time
-    # while(True):
-    #     run("live")
-    #     sleep(1)
+    while(True):
+        run("live")
+        sleep(1)
 
 
 if __name__ == "__main__":
