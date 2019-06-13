@@ -1,93 +1,70 @@
 import turtle
-from random import randint
+import random
+import numpy as np
 
 WIDTH, HEIGHT = 10, 10
+FONT = ('Arial', 8, 'normal')
 
-def draw(x1, y1, r1, x2, y2, r2, x3, y3, r3, el, l):
-  
-  myPen = turtle.Turtle()
-  myPen.hideturtle()
-  myPen.speed(0)
-  myPen.width(2)
-  
-  window = turtle.Screen()
-  window.bgcolor("#F0F0F0")
-  window.title("Trilateration")
-  scale = 60
 
-  # Red center
-  myPen.color("#ff5744")
-  myPen.penup()
-  myPen.goto(scale*x1-5, scale*y1)
-  myPen.pendown()
-  myPen.goto(scale*x1+5, scale*y1)
-  myPen.penup()
-  myPen.goto(scale*x1, scale*y1-5)
-  myPen.pendown()
-  myPen.goto(scale*x1, scale*y1+5)
-  myPen.penup()
-  
-  # Red circle
-  myPen.goto(scale*x1, scale*(y1-r1))
-  myPen.pendown()
-  myPen.circle(scale*r1)
-  myPen.penup()
-  
-  # Green center
-  myPen.color("#52bf54")
-  myPen.penup()
-  myPen.goto(scale*x2-5, scale*y2)
-  myPen.pendown()
-  myPen.goto(scale*x2+5, scale*y2)
-  myPen.penup()
-  myPen.goto(scale*x2, scale*y2-5)
-  myPen.pendown()
-  myPen.goto(scale*x2, scale*y2+5)
-  myPen.penup()
-  
-  # Green circle
-  myPen.goto(scale*x2, scale*(y2-r2))
-  myPen.pendown()
-  myPen.circle(scale*r2)
-  myPen.penup()
+def draw(el, l, m):
 
-  # Blue center
-  myPen.color("#41befc")
-  myPen.goto(scale*x3-5, scale*y3)
-  myPen.pendown()
-  myPen.goto(scale*x3+5, scale*y3)
-  myPen.penup()
-  myPen.goto(scale*x3, scale*y3-5)
-  myPen.pendown()
-  myPen.goto(scale*x3, scale*y3+5)
-  myPen.penup()
-  
-  # Blue circle
-  myPen.goto(scale*x3, scale*(y3-r3))
-  myPen.pendown()
-  myPen.circle(scale*r3)
-  myPen.penup()
+    myPen = turtle.Turtle()
+    myPen.hideturtle()
+    myPen.speed(0)
+    myPen.width(2)
+
+    window = turtle.Screen()
+    window.bgcolor("#F0F0F0")
+    window.colormode(255)
+    window.title("Trilateration")
+    scale = 20
+
+    for i in range(int(len(m)/2)):
+        myPen.color(tuple(np.random.choice(range(256), size=3)))
+        myPen.penup()
+        myPen.goto(scale*m["P{0}".format(i+1)][0]-5, scale*m["P{0}".format(i+1)][1])
+        myPen.pendown()
+        myPen.goto(scale*m["P{0}".format(i+1)][0]+5, scale*m["P{0}".format(i+1)][1])
+        myPen.penup()
+        myPen.goto(scale*m["P{0}".format(i+1)][0], scale*m["P{0}".format(i+1)][1]-5)
+        myPen.pendown()
+        myPen.goto(scale*m["P{0}".format(i+1)][0], scale*m["P{0}".format(i+1)][1]+5)
+        myPen.penup()
+
+        myPen.goto(scale*m["P{0}".format(i+1)][0], scale*(m["P{0}".format(i+1)][1]-m["r{0}".format(i+1)]))
+        myPen.pendown()
+        myPen.circle(scale*m["r{0}".format(i+1)])
+        myPen.penup()
+
+        myPen.write(str(m["P{0}".format(i+1)]), True, font=FONT)
+        myPen.penup()
 
 # Estimated localization
-  myPen.color("#800080")
-  myPen.goto(scale*el[0]-5, scale*el[1])
-  myPen.pendown()
-  myPen.goto(scale*el[0]+5, scale*el[1])
-  myPen.penup()
-  myPen.goto(scale*el[0], scale*el[1]-5)
-  myPen.pendown()
-  myPen.goto(scale*el[0], scale*el[1]+5)
-  myPen.penup()
+    myPen.color("#800080")
+    myPen.goto(scale*el[0]-5, scale*el[1])
+    myPen.pendown()
+    myPen.goto(scale*el[0]+5, scale*el[1])
+    myPen.penup()
+    myPen.goto(scale*el[0], scale*el[1]-5)
+    myPen.pendown()
+    myPen.goto(scale*el[0], scale*el[1]+5)
+    myPen.penup()
 
-  # Localization
-  myPen.color("#000000")
-  myPen.goto(scale*l[0]-5, scale*l[1])
-  myPen.pendown()
-  myPen.goto(scale*l[0]+5, scale*l[1])
-  myPen.penup()
-  myPen.goto(scale*l[0], scale*l[1]-5)
-  myPen.pendown()
-  myPen.goto(scale*l[0], scale*l[1]+5)
-  myPen.penup()
-  
-  window.exitonclick()
+    myPen.write("estimate", True, font=FONT)
+    myPen.penup()
+
+    # Localization
+    myPen.color("#000000")
+    myPen.goto(scale*l[0]-5, scale*l[1])
+    myPen.pendown()
+    myPen.goto(scale*l[0]+5, scale*l[1])
+    myPen.penup()
+    myPen.goto(scale*l[0], scale*l[1]-5)
+    myPen.pendown()
+    myPen.goto(scale*l[0], scale*l[1]+5)
+    myPen.penup()
+
+    myPen.write("nls", True, font=FONT)
+    myPen.penup()
+
+    window.exitonclick()

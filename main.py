@@ -42,7 +42,6 @@ def estimate_distance_log(rss, gamma):
     """
     https://en.wikipedia.org/wiki/Log-distance_path_loss_model
     """
-    print(rss)
     rss = int(round(rss))
     pl0 = -29
     d0 = 1
@@ -64,48 +63,6 @@ def parameter_fitting(dict_of_rss):
             dict_of_distances[ap] = estimated_distance
             print('The estimated distance of the AP %d is %f' %
                   (ap, estimated_distance))
-
-
-# def scale_distance(x1, y1, r1, x2, y2, r2, x3, y3, r3):
-
-#     r12 = r2**2 * r1**2
-#     r23 = r3**2 * r2**2
-#     r31 = r1**2 * r3**2
-
-#     a12 = 2*(r1**2 * x2 - r2**2 * x1)
-#     b12 = 2*(r1**2 * y2 - r2**2 * y1)
-#     c12 = r1**2*x2**2 + r1**2*y2**2 - r2**2*x1**2 - r2**2*y1**2
-
-#     a23 = 2*(r2**2 * x3 - r3**2 * x2)
-#     b23 = 2*(r2**2 * y3 - r3**2 * y2)
-#     c23 = r2**2*x3**2 + r2**2*y3**2 - r3**2*x2**2 - r3**2*y2**2
-
-#     a31 = 2*(r3**2 * x1 - r1**2 * x3)
-#     b31 = 2*(r3**2 * y1 - r1**2 * y3)
-#     c31 = r3**2*x1**2 + r3**2*y1**2 - r1**2*x3**2 - r1**2*y3**2
-
-#     det = (a12*r23 - a23*r12)*(b23*r31 - b31*r23) - \
-#         (a23*r31 - a31*r23) * (b12*r23 - b23*r12)
-
-#     print("det: ", det)
-#     print("den: ", a12 * b23 - a23 * b12)
-
-#     if r1 == r2 and r2 == r3 and r1 == r3 and a12 * b23 - a23 * b12 == 0:
-#         print("equal")
-#         return -1
-#     if r1 != r2 or r2 != r3 or r1 != r3 and det == 0:
-#         print("unequal")
-#         print(r1 != r2)
-#         return -1
-
-#     x = ((c12*r23 - c23*r12)*(b23*r31 - b31*r23) -
-#          (c23*r31 - c31*r23)*(b12*r23 - b23*r12)) / det
-#     y = ((a12*r23 - a23*r12)*(c23*r31 - c31*r23) -
-#          (a23*r31 - a31*r23)*(c12*r23 - c23*r12)) / det
-
-#     k = compute_distance((x, y), (x1, y1)) / r1
-
-#     return k
 
 
 def compute_distance(p1, p2):
@@ -136,6 +93,7 @@ def get_data_by_mac_address(mode, mac, APs):
 
             # rss = compute_avg_rss_for_mac_address(response, mac)
             rss = compute_median_rss_for_mac_address(response, mac)
+            dict_of_processed_rss[ap['id']] = rss
 
         # Query real-time data
         elif mode == "live":
@@ -143,10 +101,11 @@ def get_data_by_mac_address(mode, mac, APs):
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
                                       & Key('timestamp').gte(now_in_sec-5))
             rss = get_live_rss_for_mac_address(response, mac)
+            print(rss)
             if rss == -1:
-                return {}
-
-        dict_of_processed_rss[ap['id']] = rss
+                print("warning: no live data detected for AP", ap)
+            else:
+                dict_of_processed_rss[ap['id']] = rss
 
     return dict_of_processed_rss
 
@@ -218,7 +177,7 @@ def run(mode):
     dict_of_rss = get_data_by_mac_address(
         mode, TRILATERATION['mac'], TRILATERATION['APs'])
 
-    if not bool(dict_of_rss):
+    if not dict_of_rss:
         print("error: no real-time data found")
         return
 
@@ -232,6 +191,7 @@ def run(mode):
         print('The estimated distance of the AP %d is %f' %
               (ap, estimated_distance))
 
+    # Format data as a dictionary
     global m
     m = {}
     for i in range(0, len(TRILATERATION['APs'])):
@@ -241,15 +201,13 @@ def run(mode):
     print(m)
 
     # Trilateration
-    estimated_localization = trilaterate(**m)
-    localization = trilaterate_least_squares(estimated_localization)
-    print("Trilateration estimation: ", estimated_localization)
+    # estimated_localization = trilaterate(**m)
+    localization = trilaterate_least_squares((0, 0))
+    # print("Trilateration estimation: ", estimated_localization)
     print("NLS estimation: ", tuple(localization))
 
     # Draw
-    draw(m['P1'][0], m['P1'][1], m['r1'], m['P2'][0], m['P2'][1],
-         m['r2'], m['P3'][0], m['P3'][1], m['r3'], estimated_localization,
-         localization)
+    draw(localization, localization, m)
 
 
 def main():
