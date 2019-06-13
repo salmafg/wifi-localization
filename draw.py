@@ -17,7 +17,7 @@ def draw(el, l, m):
     window.bgcolor("#F0F0F0")
     window.colormode(255)
     window.title("Trilateration")
-    scale = 20
+    scale = 60
 
     for i in range(int(len(m)/2)):
         myPen.color(tuple(np.random.choice(range(256), size=3)))
@@ -31,13 +31,14 @@ def draw(el, l, m):
         myPen.goto(scale*m["P{0}".format(i+1)][0], scale*m["P{0}".format(i+1)][1]+5)
         myPen.penup()
 
+        myPen.write(str(m["P{0}".format(i+1)]), True, font=FONT)
+        myPen.penup()
+
         myPen.goto(scale*m["P{0}".format(i+1)][0], scale*(m["P{0}".format(i+1)][1]-m["r{0}".format(i+1)]))
         myPen.pendown()
         myPen.circle(scale*m["r{0}".format(i+1)])
         myPen.penup()
 
-        myPen.write(str(m["P{0}".format(i+1)]), True, font=FONT)
-        myPen.penup()
 
 # Estimated localization
     myPen.color("#800080")
@@ -50,7 +51,7 @@ def draw(el, l, m):
     myPen.goto(scale*el[0], scale*el[1]+5)
     myPen.penup()
 
-    myPen.write("estimate", True, font=FONT)
+    myPen.write("x0", True, font=FONT)
     myPen.penup()
 
     # Localization
@@ -64,7 +65,7 @@ def draw(el, l, m):
     myPen.goto(scale*l[0], scale*l[1]+5)
     myPen.penup()
 
-    myPen.write("nls", True, font=FONT)
+    myPen.write("x1", True, font=FONT)
     myPen.penup()
 
     window.exitonclick()

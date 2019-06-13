@@ -101,9 +101,9 @@ def get_data_by_mac_address(mode, mac, APs):
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
                                       & Key('timestamp').gte(now_in_sec-5))
             rss = get_live_rss_for_mac_address(response, mac)
-            print(rss)
+
             if rss == -1:
-                print("warning: no live data detected for AP", ap)
+                print("warning: no live data detected for AP", ap['id'])
             else:
                 dict_of_processed_rss[ap['id']] = rss
 
@@ -177,9 +177,9 @@ def run(mode):
     dict_of_rss = get_data_by_mac_address(
         mode, TRILATERATION['mac'], TRILATERATION['APs'])
 
-    if not dict_of_rss:
-        print("error: no real-time data found")
-        return
+    # if not dict_of_rss:
+    #     print("error: no real-time data found")
+    #     return
 
     # Distance estimation
     dict_of_distances = {}
@@ -201,24 +201,24 @@ def run(mode):
     print(m)
 
     # Trilateration
-    # estimated_localization = trilaterate(**m)
+    estimated_localization = trilaterate(**m)
     localization = trilaterate_least_squares((0, 0))
-    # print("Trilateration estimation: ", estimated_localization)
+    print("Trilateration estimation: ", estimated_localization)
     print("NLS estimation: ", tuple(localization))
 
     # Draw
-    draw(localization, localization, m)
+    draw(estimated_localization, localization, m)
 
 
 def main():
 
     # Mode 1: Trialteration on historical data
-    # run("hist")
+    run("hist")
 
     # Mode 2: Trilateration in real-time
-    while(True):
-        run("live")
-        sleep(1)
+    # while(True):
+    #     run("live")
+    #     sleep(1)
 
 
 if __name__ == "__main__":
