@@ -53,6 +53,14 @@ def estimate_distance_log(rss, gamma):
     return d
 
 
+def distance(p1, p2):
+    """
+    Computes Pythagorean distance
+    """
+    d = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
+    return d
+
+
 def parameter_fitting(dict_of_rss):
     gammas = np.arange(2.0, 6.0, 0.1)
     for gamma in gammas:
@@ -63,11 +71,6 @@ def parameter_fitting(dict_of_rss):
             dict_of_distances[ap] = estimated_distance
             print('The estimated distance of the AP %d is %f' %
                   (ap, estimated_distance))
-
-
-def distance(p1, p2):
-    distance = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
-    return distance
 
 
 def get_data_by_mac_address(mode, mac, APs):
@@ -165,7 +168,7 @@ def equations(guess):
         xi = m["P{0}".format(i+1)][0]
         yi = m["P{0}".format(i+1)][1]
         ri = m["r{0}".format(i+1)]
-        equations += (distance((x, y), (xi, yi)) / ri**2,)
+        equations += (distance((x, y), (xi, yi)) / abs(ri),)
     return equations
 
 
