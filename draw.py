@@ -6,7 +6,7 @@ WIDTH, HEIGHT = 10, 10
 FONT = ('Arial', 8, 'normal')
 
 
-def draw(el, l, m):
+def draw(el, l, p, r):
 
     myPen = turtle.Turtle()
     myPen.hideturtle()
@@ -17,26 +17,26 @@ def draw(el, l, m):
     window.bgcolor("#F0F0F0")
     window.colormode(255)
     window.title("Trilateration")
-    scale = 60
+    scale = 30
 
-    for i in range(int(len(m)/2)):
+    for i in p:
         myPen.color(tuple(np.random.choice(range(256), size=3)))
         myPen.penup()
-        myPen.goto(scale*m["P{0}".format(i+1)][0]-5, scale*m["P{0}".format(i+1)][1])
+        myPen.goto(scale*p[i][0]-5, scale*p[i][1])
         myPen.pendown()
-        myPen.goto(scale*m["P{0}".format(i+1)][0]+5, scale*m["P{0}".format(i+1)][1])
+        myPen.goto(scale*p[i][0]+5, scale*p[i][1])
         myPen.penup()
-        myPen.goto(scale*m["P{0}".format(i+1)][0], scale*m["P{0}".format(i+1)][1]-5)
+        myPen.goto(scale*p[i][0], scale*p[i][1]-5)
         myPen.pendown()
-        myPen.goto(scale*m["P{0}".format(i+1)][0], scale*m["P{0}".format(i+1)][1]+5)
-        myPen.penup()
-
-        myPen.write(str(m["P{0}".format(i+1)]), True, font=FONT)
+        myPen.goto(scale*p[i][0], scale*p[i][1]+5)
         myPen.penup()
 
-        myPen.goto(scale*m["P{0}".format(i+1)][0], scale*(m["P{0}".format(i+1)][1]-m["r{0}".format(i+1)]))
+        myPen.write('P'+str(i), True, font=FONT)
+        myPen.penup()
+
+        myPen.goto(scale*p[i][0], scale*(p[i][1]-r[i]))
         myPen.pendown()
-        myPen.circle(scale*m["r{0}".format(i+1)])
+        myPen.circle(scale*r[i])
         myPen.penup()
 
 

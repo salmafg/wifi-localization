@@ -10,6 +10,7 @@ from config import TRILATERATION
 from draw import draw
 import scipy
 from scipy.optimize import least_squares
+from heapq import nlargest
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
@@ -102,7 +103,7 @@ def get_data_by_mac_address(mode, mac, APs):
         elif mode == "live":
             now_in_sec = int(round(datetime.now().timestamp()))
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-                                      & Key('timestamp').gte(now_in_sec-5))
+                                      & Key('timestamp').gte(now_in_sec-60))
             rss = get_live_rss_for_mac_address(response, mac)
 
             if rss == -1:
@@ -145,6 +146,10 @@ def get_live_rss_for_mac_address(response, mac):
     return -1
 
 
+def get_closest_access_points():
+    return sorted(r, key=r.get)[:3]
+
+
 def trilaterate(P1, P2, P3, r1, r2, r3):
     """
     https://bit.ly/2w3ybNU
@@ -164,10 +169,10 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
 def equations(guess):
     x, y = guess
     equations = ()
-    for i in range(0, n):
-        xi = m["P{0}".format(i+1)][0]
-        yi = m["P{0}".format(i+1)][1]
-        ri = m["r{0}".format(i+1)]
+    for i in p:
+        xi = p[i][0]
+        yi = p[i][1]
+        ri = r[i]
         equations += (distance((x, y), (xi, yi)) / abs(ri),)
     return equations
 
@@ -182,38 +187,40 @@ def run(mode):
     dict_of_rss = get_data_by_mac_address(
         mode, TRILATERATION['mac'], TRILATERATION['APs'])
 
-    # if not dict_of_rss:
-    #     print("error: no real-time data found")
-    #     return
-
-    # Distance estimation
-    dict_of_distances = {}
+    # Distance estimates dictionary
+    global r
+    r = {}
     for ap, rss in dict_of_rss.items():
-        # estimated_distance = estimate_distance_fspl(rss)
+        estimated_distance = estimate_distance_fspl(rss)
         # estimated_distance = estimate_distance_itu(rss)
-        estimated_distance = estimate_distance_log(rss, 2.3)
-        dict_of_distances[ap] = estimated_distance
+        # estimated_distance = estimate_distance_log(rss, 2.3)
+        r[ap] = estimated_distance
         print('The estimated distance of the AP %d is %f' %
               (ap, estimated_distance))
 
-    # Format data as a dictionary
-    global m, n
-    m = {}
-    n = len(TRILATERATION['APs'])
-    for i in range(0, n):
-        m["P{0}".format(i+1)] = TRILATERATION['APs'][i]['xy']
-        m["r{0}".format(
-            i+1)] = dict_of_distances[TRILATERATION['APs'][i]['id']]
-    print(m)
+    # Points dictionary
+    global p
+    p = {}
+    for i in r:
+        p[i] = next(item for item in TRILATERATION['APs']
+                    if item['id'] == i)['xy']
+
+    c = get_closest_access_points()
+    print("Closest to access points ", ', '.join(str(i) for i in c))
 
     # Trilateration
-    estimated_localization = trilaterate(**m)
-    localization = trilaterate_least_squares(estimated_localization)
+    p3 = {k: v for k, v in p.items() if k in c}
+    r3 = {k: v for k, v in r.items() if k in c}
+    args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
+    estimated_localization = trilaterate(*args)
     print("Trilateration estimation: ", estimated_localization)
+
+    # NLS
+    localization = trilaterate_least_squares(estimated_localization)
     print("NLS estimation: ", tuple(localization[:2]))
 
     # Draw
-    draw(estimated_localization, localization, m)
+    draw(estimated_localization, localization, p, r)
 
 
 def main():
