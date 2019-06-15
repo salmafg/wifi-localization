@@ -170,19 +170,19 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
     return (x, y)
 
 
-def equations(guess):
+def residuals(guess):
     x, y = guess
-    equations = ()
+    res = ()
     for i in p:
         xi = p[i][0]
         yi = p[i][1]
         ri = r[i]
-        equations += (distance((x, y), (xi, yi)) / abs(ri),)
-    return equations
+        res += (distance((x, y), (xi, yi)) / abs(ri),)
+    return res
 
 
 def trilaterate_least_squares(guess):
-    ls = least_squares(equations, guess)
+    ls = least_squares(residuals, guess)
     return(ls.x)
 
 
@@ -219,11 +219,11 @@ def run(mode):
     if len(p3) == 3 and len(r3) == 3:
         args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
         estimated_localization = trilaterate(*args)
-        print("Trilateration estimation: ", estimated_localization)
-        localization = trilaterate_least_squares(estimated_localization)  # NLS
     else:
         print("error: trilateration not possible")
-        localization = trilaterate_least_squares((0, 0))  # NLS
+        estimated_localization = (0, 0)
+    print("Trilateration estimation: ", estimated_localization)
+    localization = trilaterate_least_squares(estimated_localization)  # NLS
     print("NLS estimation: ", tuple(localization[:2]))
 
     # Draw
