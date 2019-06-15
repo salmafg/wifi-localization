@@ -161,8 +161,12 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
     D = 2*P3[0] - 2*P2[0]
     E = 2*P3[1] - 2*P2[1]
     F = r2**2 - r3**2 - P2[0]**2 + P3[0]**2 - P2[1]**2 + P3[1]**2
-    x = (C*E - F*B) / (E*A - B*D)
-    y = (C*D - A*F) / (B*D - A*E)
+    try:
+        x = (C*E - F*B) / (E*A - B*D)
+        y = (C*D - A*F) / (B*D - A*E)
+    except ZeroDivisionError:
+        print("error: division by zero, returning (0, 0)..")
+        return (0, 0)
     return (x, y)
 
 
@@ -205,18 +209,21 @@ def run(mode):
         p[i] = next(item for item in TRILATERATION['APs']
                     if item['id'] == i)['xy']
 
+    # c = [29, 31, 34]
     c = get_closest_access_points()
-    print("Closest to access points ", ', '.join(str(i) for i in c))
+    print("Closest to access points", ', '.join(str(i) for i in c))
 
     # Trilateration
     p3 = {k: v for k, v in p.items() if k in c}
     r3 = {k: v for k, v in r.items() if k in c}
-    args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
-    estimated_localization = trilaterate(*args)
-    print("Trilateration estimation: ", estimated_localization)
-
-    # NLS
-    localization = trilaterate_least_squares(estimated_localization)
+    if len(p3) == 3 and len(r3) == 3:
+        args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
+        estimated_localization = trilaterate(*args)
+        print("Trilateration estimation: ", estimated_localization)
+        localization = trilaterate_least_squares(estimated_localization)  # NLS
+    else:
+        print("error: trilateration not possible")
+        localization = trilaterate_least_squares((0, 0))  # NLS
     print("NLS estimation: ", tuple(localization[:2]))
 
     # Draw
@@ -225,13 +232,13 @@ def run(mode):
 
 def main():
 
-    # Mode 1: Trialteration on historical data
+    # Mode 1: Trilateration on historical data
     run("hist")
 
     # Mode 2: Trilateration in real-time
-    # while(True):
-    #     run("live")
-    #     sleep(1)
+    while(True):
+        run("live")
+        sleep(1)
 
 
 if __name__ == "__main__":

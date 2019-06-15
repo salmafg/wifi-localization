@@ -31,7 +31,7 @@ def draw(el, l, p, r):
         myPen.goto(scale*p[i][0], scale*p[i][1]+5)
         myPen.penup()
 
-        myPen.write('P'+str(i), True, font=FONT)
+        myPen.write(i, True, font=FONT)
         myPen.penup()
 
         myPen.goto(scale*p[i][0], scale*(p[i][1]-r[i]))
@@ -67,5 +67,3 @@ def draw(el, l, p, r):
 
     myPen.write("x1", True, font=FONT)
     myPen.penup()
-
-    window.exitonclick()
