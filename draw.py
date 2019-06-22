@@ -1,6 +1,7 @@
 import turtle
 import random
 import numpy as np
+from time import sleep
 
 WIDTH, HEIGHT = 10, 10
 FONT = ('Arial', 8, 'normal')
@@ -11,13 +12,13 @@ def draw(el, l, p, r):
     myPen = turtle.Turtle()
     myPen.hideturtle()
     myPen.speed(0)
-    myPen.width(2)
+    myPen.width(3)
 
     window = turtle.Screen()
-    window.bgcolor("#F0F0F0")
+    window.clear()
     window.colormode(255)
     window.title("Trilateration")
-    scale = 30
+    scale = 60
 
     for i in p:
         myPen.color(tuple(np.random.choice(range(256), size=3)))
@@ -67,3 +68,6 @@ def draw(el, l, p, r):
 
     myPen.write("x1", True, font=FONT)
     myPen.penup()
+
+    window.exitonclick()
+    # sleep(2)

@@ -11,67 +11,10 @@ from draw import draw
 import scipy
 from scipy.optimize import least_squares
 from heapq import nlargest
+from pathLoss import log
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
-
-
-def estimate_distance_fspl(rss):
-    """
-    http://goo.gl/cGXmDw
-    """
-    rss = int(round(rss))
-    logd = (27.55 - (20 * math.log10(2400)) + abs(rss)) / 20
-    d = math.pow(10, logd)
-    return d
-
-
-def estimate_distance_itu(rss):
-    """
-    https://en.wikipedia.org/wiki/ITU_model_for_indoor_attenuation
-    """
-    rss = int(round(rss))
-    f = 2400
-    p_fn = 4
-    N = 28
-    logd = (abs(rss) - (20 * math.log10(f) + p_fn - 28)) / N
-    d = math.pow(10, logd)
-    return d
-
-
-def estimate_distance_log(rss, gamma):
-    """
-    https://en.wikipedia.org/wiki/Log-distance_path_loss_model
-    """
-    rss = int(round(rss))
-    pl0 = -29
-    d0 = 1
-    gamma = gamma
-    Xg = np.random.standard_normal(1)[0]
-    logdd0 = (abs(rss) - abs(pl0) - Xg) / (10 * gamma)
-    dd0 = math.pow(10, logdd0)
-    d = dd0 * d0
-    return d
-
-
-def distance(p1, p2):
-    """
-    Computes Pythagorean distance
-    """
-    d = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
-    return d
-
-
-def parameter_fitting(dict_of_rss):
-    gammas = np.arange(2.0, 6.0, 0.1)
-    for gamma in gammas:
-        print("For gamma = ", gamma)
-        dict_of_distances = {}
-        for ap, rss in dict_of_rss.items():
-            estimated_distance = estimate_distance_log(rss, gamma)
-            dict_of_distances[ap] = estimated_distance
-            print('The estimated distance of the AP %d is %f' %
-                  (ap, estimated_distance))
 
 
 def get_data_by_mac_address(mode, mac, APs):
@@ -103,7 +46,7 @@ def get_data_by_mac_address(mode, mac, APs):
         elif mode == "live":
             now_in_sec = int(round(datetime.now().timestamp()))
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-                                      & Key('timestamp').gte(now_in_sec-60))
+                                      & Key('timestamp').gte(now_in_sec-5))
             rss = get_live_rss_for_mac_address(response, mac)
 
             if rss == -1:
@@ -150,6 +93,14 @@ def get_closest_access_points():
     return sorted(r, key=r.get)[:3]
 
 
+def distance(p1, p2):
+    """
+    Computes Pythagorean distance
+    """
+    d = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
+    return d
+
+
 def trilaterate(P1, P2, P3, r1, r2, r3):
     """
     https://bit.ly/2w3ybNU
@@ -177,7 +128,8 @@ def residuals(guess):
         xi = p[i][0]
         yi = p[i][1]
         ri = r[i]
-        res += (distance((x, y), (xi, yi)) / abs(ri),)
+        res += ((distance((x, y), (xi, yi)) - ri) / abs(ri), )
+        # res += ((distance((x, y), (xi, yi))/ri - math.log(ri)), )
     return res
 
 
@@ -195,9 +147,7 @@ def run(mode):
     global r
     r = {}
     for ap, rss in dict_of_rss.items():
-        estimated_distance = estimate_distance_fspl(rss)
-        # estimated_distance = estimate_distance_itu(rss)
-        # estimated_distance = estimate_distance_log(rss, 2.3)
+        estimated_distance = log(rss, 2.3)
         r[ap] = estimated_distance
         print('The estimated distance of the AP %d is %f' %
               (ap, estimated_distance))
@@ -209,7 +159,6 @@ def run(mode):
         p[i] = next(item for item in TRILATERATION['APs']
                     if item['id'] == i)['xy']
 
-    # c = [29, 31, 34]
     c = get_closest_access_points()
     print("Closest to access points", ', '.join(str(i) for i in c))
 
@@ -227,7 +176,8 @@ def run(mode):
     print("NLS estimation: ", tuple(localization[:2]))
 
     # Draw
-    draw(estimated_localization, localization, p, r)
+    if len(r3) >= 3:
+        draw(estimated_localization, localization, p, r)
 
 
 def main():
@@ -236,9 +186,9 @@ def main():
     run("hist")
 
     # Mode 2: Trilateration in real-time
-    while(True):
-        run("live")
-        sleep(1)
+    # while(True):
+    #     run("live")
+    #     sleep(1)
 
 
 if __name__ == "__main__":
