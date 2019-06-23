@@ -8,14 +8,14 @@ import math
 import statistics
 from config import TRILATERATION, RSS
 from draw import draw
-import scipy
-from scipy.optimize import least_squares
 from heapq import nlargest
-from pathLoss import log
+from path_loss import log
 import matplotlib
 import matplotlib.pyplot as plt
-from kalmanFilter import KalmanFilter
+from kalman_filter import KalmanFilter
 from statistics import stdev
+from nls import nls
+from trilateration import *
 
 
 dynamodb = boto3.resource('dynamodb')
@@ -60,7 +60,7 @@ def run_kalman_filter_rss():
     plt.title('RSS fluctuation')
     plt.show()
 
-    plt.hist(y, color = 'blue', edgecolor = 'black', bins=int(len(t)/10))
+    plt.hist(y, color='blue', edgecolor='black', bins=int(len(t)/10))
     plt.title('Histogram of RSS at 1m')
     plt.xlabel('RSS')
     plt.show()
@@ -159,55 +159,6 @@ def get_live_rss_for_mac_address(response, mac):
     return -1
 
 
-def get_closest_access_points():
-    return sorted(r, key=r.get)[:3]
-
-
-def distance(p1, p2):
-    """
-    Computes Pythagorean distance
-    """
-    d = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
-    return d
-
-
-def trilaterate(P1, P2, P3, r1, r2, r3):
-    """
-    https://bit.ly/2w3ybNU
-    https://bit.ly/2EbDLSC
-    """
-    A = 2*P2[0] - 2*P1[0]  # 2(x2) - 2(x1)
-    B = 2*P2[1] - 2*P1[1]  # 2(y2) - 2(y1)
-    C = r1**2 - r2**2 - P1[0]**2 + P2[0]**2 - P1[1]**2 + P2[1]**2
-    D = 2*P3[0] - 2*P2[0]
-    E = 2*P3[1] - 2*P2[1]
-    F = r2**2 - r3**2 - P2[0]**2 + P3[0]**2 - P2[1]**2 + P3[1]**2
-    try:
-        x = (C*E - F*B) / (E*A - B*D)
-        y = (C*D - A*F) / (B*D - A*E)
-    except ZeroDivisionError:
-        print("error: division by zero, returning (0, 0)..")
-        return (0, 0)
-    return (x, y)
-
-
-def residuals(guess):
-    x, y = guess
-    res = ()
-    for i in p:
-        xi = p[i][0]
-        yi = p[i][1]
-        ri = r[i]
-        res += ((distance((x, y), (xi, yi)) - ri) / abs(ri), )
-        # res += ((distance((x, y), (xi, yi))/ri - math.log(ri)), )
-    return res
-
-
-def trilaterate_least_squares(guess):
-    ls = least_squares(residuals, guess)
-    return(ls.x)
-
-
 def run(mode):
     # Query RSS data by mac address
     dict_of_rss = get_data_by_mac_address(
@@ -230,7 +181,7 @@ def run(mode):
                     if item['id'] == i)['xy']
 
     # c = [29, 31, 33]
-    c = get_closest_access_points()
+    c = sorted(r, key=r.get)[:3]
     print("Closest to access points", ', '.join(str(i) for i in c))
 
     # Trilateration
@@ -243,7 +194,7 @@ def run(mode):
         print("error: trilateration not possible")
         estimated_localization = (0, 0)
     print("Trilateration estimation: ", estimated_localization)
-    localization = trilaterate_least_squares(estimated_localization)  # NLS
+    localization = nls(estimated_localization, p, r)  # NLS
     print("NLS estimation: ", tuple(localization[:2]))
 
     # Draw
@@ -254,13 +205,15 @@ def run(mode):
 def main():
 
     # Mode 1: Trilateration on historical data
-    # run("hist")
+    run("hist")
 
     # Mode 2: Trilateration in real-time
     # while(True):
     #     run("live")
     #     time.sleep(1)
-    run_kalman_filter_rss()
+
+    # Kalman filter
+    # run_kalman_filter_rss()
 
 
 if __name__ == "__main__":
