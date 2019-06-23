@@ -1,20 +1,91 @@
 import boto3
 from boto3.dynamodb.conditions import Key
-from datetime import datetime
-from time import sleep
+from datetime import datetime, timedelta
+import time
 import json
 import numpy as np
 import math
 import statistics
-from config import TRILATERATION
+from config import TRILATERATION, RSS
 from draw import draw
 import scipy
 from scipy.optimize import least_squares
 from heapq import nlargest
 from pathLoss import log
+import matplotlib
+import matplotlib.pyplot as plt
+from kalmanFilter import KalmanFilter
+from statistics import stdev
+
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
+
+
+def get_rss_fluctuation_by_mac_address(start, end, mac, ap):
+    start_timestamp = datetime.strptime(start, '%d %b %Y %H:%M')
+    end_timestamp = datetime.strptime(end, '%d %b %Y %H:%M')
+
+    start_in_sec = int(start_timestamp.timestamp())
+    end_in_sec = int(end_timestamp.timestamp())
+
+    response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap)
+                              & Key('timestamp').between(start_in_sec, end_in_sec))
+
+    avg_rss = compute_avg_rss_for_mac_address(response, mac)
+    rss = []
+    timestamps = []
+    for r in response['Items']:
+        if (r['payload']['mac']) == mac:
+            rss.append(int(r['payload']['rssi']))
+            timestamps.append(int(r['payload']['timestamp']))
+    return(timestamps, rss, avg_rss)
+
+
+def run_kalman_filter_rss():
+
+    # Query and plot unfiltered data
+    t, y, avg = get_rss_fluctuation_by_mac_address(
+        RSS['start'], RSS['end'], RSS['mac'], RSS['ap'])
+    devs = [-int(abs(i)-abs(avg)) if i <= avg else -
+            int(abs(avg)-abs(i)) for i in y]
+    plt.hist(devs, color='blue', edgecolor='black', bins=int(len(y)/10))
+    plt.xlim(left=min(y))
+    plt.show()
+    tperiod = max(t) - min(t)
+    trange = np.linspace(0, tperiod, len(y))
+    print('Avg. RSS: ', avg)
+    plt.plot(trange, y)
+    plt.hlines(avg, 0, tperiod, 'k', 'dashed')
+    plt.title('RSS fluctuation')
+    plt.show()
+
+    # plt.hist(y, color = 'blue', edgecolor = 'black', bins=int(len(t)/10))
+    # plt.title('Histogram of RSS at 1m')
+    # plt.xlabel('RSS')
+    # plt.show()
+
+    # Apply Kalman filter and plot results
+    kalman = KalmanFilter(0.008, 0.1)
+    filtered_data = []
+    sum_filtered = 0
+    for i in y:
+        filtered_i = kalman.filter(i)
+        sum_filtered += filtered_i
+        filtered_data.append(filtered_i)
+    avg_filtered = sum_filtered / len(filtered_data)
+    print('Avg. filtered RSS: ', avg_filtered)
+    plt.plot(trange, filtered_data)
+    plt.ylim(min(y), max(y))
+    plt.hlines(avg_filtered, 0, tperiod, 'k', 'dashed')
+    plt.show()
+
+    plt.hist(filtered_data, color='blue',
+             edgecolor='black', bins=int(len(t)/10))
+    plt.title('Histogram of filtered RSS at 1m')
+    plt.xlim(min(y), max(y))
+    plt.xlabel('RSS')
+    plt.show()
 
 
 def get_data_by_mac_address(mode, mac, APs):
@@ -28,12 +99,12 @@ def get_data_by_mac_address(mode, mac, APs):
         # Query historical data in a specified time range
         if mode == "hist":
             start_timestamp = datetime.strptime(
-                TRILATERATION['start_timestamp'], '%d %b %Y %H:%M')
+                TRILATERATION['start'], '%d %b %Y %H:%M')
             end_timestamp = datetime.strptime(
-                TRILATERATION['end_timestamp'], '%d %b %Y %H:%M')
+                TRILATERATION['end'], '%d %b %Y %H:%M')
 
-            start_in_sec = int(round(start_timestamp.timestamp()))
-            end_in_sec = int(round(end_timestamp.timestamp()))
+            start_in_sec = int(start_timestamp.timestamp())
+            end_in_sec = int(end_timestamp.timestamp())
 
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
                                       & Key('timestamp').between(start_in_sec, end_in_sec))
@@ -44,7 +115,7 @@ def get_data_by_mac_address(mode, mac, APs):
 
         # Query real-time data
         elif mode == "live":
-            now_in_sec = int(round(datetime.now().timestamp()))
+            now_in_sec = int(datetime.now().timestamp())
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
                                       & Key('timestamp').gte(now_in_sec-5))
             rss = get_live_rss_for_mac_address(response, mac)
@@ -60,7 +131,6 @@ def get_data_by_mac_address(mode, mac, APs):
 def compute_avg_rss_for_mac_address(response, mac):
     sum_rss = 0
     count_rss = 0
-    print(response)
     for r in response['Items']:
         if (r['payload']['mac']) == mac:
             # print(r['payload'])
@@ -141,7 +211,7 @@ def trilaterate_least_squares(guess):
 def run(mode):
     # Query RSS data by mac address
     dict_of_rss = get_data_by_mac_address(
-        mode, TRILATERATION['mac'], TRILATERATION['APs'])
+        mode, TRILATERATION['mac'], TRILATERATION['aps'])
 
     # Distance estimates dictionary
     global r
@@ -156,9 +226,10 @@ def run(mode):
     global p
     p = {}
     for i in r:
-        p[i] = next(item for item in TRILATERATION['APs']
+        p[i] = next(item for item in TRILATERATION['aps']
                     if item['id'] == i)['xy']
 
+    # c = [29, 31, 33]
     c = get_closest_access_points()
     print("Closest to access points", ', '.join(str(i) for i in c))
 
@@ -183,12 +254,13 @@ def run(mode):
 def main():
 
     # Mode 1: Trilateration on historical data
-    run("hist")
+    # run("hist")
 
     # Mode 2: Trilateration in real-time
     # while(True):
     #     run("live")
-    #     sleep(1)
+    #     time.sleep(1)
+    run_kalman_filter_rss()
 
 
 if __name__ == "__main__":
