@@ -60,10 +60,10 @@ def run_kalman_filter_rss():
     plt.title('RSS fluctuation')
     plt.show()
 
-    # plt.hist(y, color = 'blue', edgecolor = 'black', bins=int(len(t)/10))
-    # plt.title('Histogram of RSS at 1m')
-    # plt.xlabel('RSS')
-    # plt.show()
+    plt.hist(y, color = 'blue', edgecolor = 'black', bins=int(len(t)/10))
+    plt.title('Histogram of RSS at 1m')
+    plt.xlabel('RSS')
+    plt.show()
 
     # Apply Kalman filter and plot results
     kalman = KalmanFilter(0.008, 0.1)
