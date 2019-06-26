@@ -30,11 +30,10 @@ def log(rss, gamma):
     https://en.wikipedia.org/wiki/Log-distance_path_loss_model
     """
     rss = int(round(rss))
-    pl0 = -29
+    pl0 = -30
     d0 = 1
     gamma = gamma
-    Xg = np.random.standard_normal(1)[0]
-    logdd0 = (abs(rss) - abs(pl0) - Xg) / (10 * gamma)
+    logdd0 = (abs(rss) - abs(pl0)) / (10 * gamma)
     dd0 = math.pow(10, logdd0)
     d = dd0 * d0
     return d

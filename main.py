@@ -6,8 +6,9 @@ import json
 import numpy as np
 import math
 import statistics
-from config import TRILATERATION, RSS
+from config import *
 from draw import draw
+from utils import rotate
 from heapq import nlargest
 from path_loss import log
 import matplotlib
@@ -16,6 +17,7 @@ from kalman_filter import KalmanFilter
 from statistics import stdev
 from nls import nls
 from trilateration import *
+import pyrebase
 
 
 dynamodb = boto3.resource('dynamodb')
@@ -160,6 +162,7 @@ def get_live_rss_for_mac_address(response, mac):
 
 
 def run(mode):
+
     # Query RSS data by mac address
     dict_of_rss = get_data_by_mac_address(
         mode, TRILATERATION['mac'], TRILATERATION['aps'])
@@ -168,10 +171,12 @@ def run(mode):
     global r
     r = {}
     for ap, rss in dict_of_rss.items():
-        estimated_distance = log(rss, 2.3)
-        r[ap] = estimated_distance
-        print('The estimated distance of the AP %d is %f' %
-              (ap, estimated_distance))
+        if rss > -60:
+            estimated_distance = log(rss, 2.3)
+            # estimated_distance = fspl(rss)
+            r[ap] = estimated_distance
+            print('The estimated distance of the AP for RSS %d is %d is %f' %
+                  (rss, ap, estimated_distance))
 
     # Points dictionary
     global p
@@ -180,40 +185,64 @@ def run(mode):
         p[i] = next(item for item in TRILATERATION['aps']
                     if item['id'] == i)['xy']
 
-    # c = [29, 31, 33]
     c = sorted(r, key=r.get)[:3]
-    print("Closest to access points", ', '.join(str(i) for i in c))
+    if c:
+        print("Closest to access points", ', '.join(str(i) for i in c))
 
     # Trilateration
     p3 = {k: v for k, v in p.items() if k in c}
     r3 = {k: v for k, v in r.items() if k in c}
-    if len(p3) == 3 and len(r3) == 3:
+    global localization
+    localization = None
+
+    if len(p3) == 3:
         args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
         estimated_localization = trilaterate(*args)
-    else:
-        print("error: trilateration not possible")
-        estimated_localization = (0, 0)
-    print("Trilateration estimation: ", estimated_localization)
-    localization = nls(estimated_localization, p, r)  # NLS
-    print("NLS estimation: ", tuple(localization[:2]))
+        print("Trilateration estimation: ", estimated_localization)
 
-    # Draw
-    if len(r3) >= 3:
-        draw(estimated_localization, localization, p, r)
+        # Non-linear least squares
+        localization = nls(estimated_localization, p, r)
+        print("NLS estimation: ", tuple(localization[:2]))
+
+        # Correct angle deviation
+        localization = rotate(localization, GEO['deviation'])
+
+        # Draw
+        # draw(estimated_localization, localization, p, r)
+
+        # Connect Firebase
+        firebase = pyrebase.initialize_app(FIREBASE)
+        db = firebase.database()
+        firebase_directory = "trilateration-data"
+
+        # Compute absolute localization
+        lat = GEO['origin'][0] + localization[1]*GEO['oneMeterLat']
+        lng = GEO['origin'][1] + localization[0]*GEO['oneMeterLng']
+
+        # Push data to Firebase
+        data = {
+            'lat': lat,
+            'lng': lng,
+            'timestamp': str(datetime.now())
+        }
+        db.child(firebase_directory).push(data)
+
+    elif localization != None:
+        print("info: trilateration not possible, using last value ", localization)
 
 
 def main():
 
-    # Mode 1: Trilateration on historical data
-    run("hist")
-
-    # Mode 2: Trilateration in real-time
-    # while(True):
-    #     run("live")
-    #     time.sleep(1)
-
     # Kalman filter
     # run_kalman_filter_rss()
+
+    # Mode 1: Trilateration on historical data
+    # run("hist")
+
+    # Mode 2: Trilateration in real-time
+    while(True):
+        run("live")
+        time.sleep(1)
 
 
 if __name__ == "__main__":
