@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from config import LOG
 
 
 def fspl(rss):
@@ -25,14 +26,14 @@ def itu(rss):
     return d
 
 
-def log(rss, gamma):
+def log(rss):
     """
     https://en.wikipedia.org/wiki/Log-distance_path_loss_model
     """
     rss = int(round(rss))
-    pl0 = -30
-    d0 = 1
-    gamma = gamma
+    pl0 = LOG['pl0']
+    d0 = LOG['d0']
+    gamma = LOG['gamma']
     logdd0 = (abs(rss) - abs(pl0)) / (10 * gamma)
     dd0 = math.pow(10, logdd0)
     d = dd0 * d0
