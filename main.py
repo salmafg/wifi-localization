@@ -82,7 +82,7 @@ def run(mode):
         if rss > -60:  # threshold
             estimated_distance = log(rss)
             r[ap] = estimated_distance
-            print('The estimated distance of the AP for RSS %d is %d is %f' %
+            print('The estimated distance of the AP of RSS %d is %d is %f' %
                   (rss, ap, estimated_distance))
 
     # Points dictionary
@@ -145,14 +145,14 @@ def main():
     # run_kalman_filter_rss(29)
 
     # Mode 1: Trilateration on historical data
-    # run("hist")
+    run("hist")
 
     # Mode 2: Trilateration in real-time
-    while(True):
-        run("live")
+    # while(True):
+    #     run("live")
 
     # Fit curve
-    # fit()
+    fit()
 
 
 if __name__ == "__main__":

@@ -38,15 +38,13 @@ def convert_date_to_secs(date):
     return int(date.timestamp())
 
 
-def compute_avg_rss_for_mac_address(response, mac):
-    sum_rss = 0
-    count_rss = 0
+def compute_mean_rss_for_mac_address(response, mac):
+    rss_values = []
     for r in response['Items']:
         if (r['payload']['mac']) == mac:
             # print(r['payload'])
-            sum_rss = sum_rss + r['payload']['rssi']
-            count_rss += 1
-    avg_rss = sum_rss / count_rss
+            rss_values.append(r['payload']['rssi'])
+    avg_rss = statistics.mean(rss_values)
     # print(avg_rss)
     return avg_rss
 
@@ -69,7 +67,7 @@ def get_rss_fluctuation_by_mac_address(start, end, ap):
     response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap)
                               & Key('timestamp').between(start_in_sec, end_in_sec))
 
-    avg_rss = compute_avg_rss_for_mac_address(response, TRILATERATION['mac'])
+    avg_rss = compute_mean_rss_for_mac_address(response, TRILATERATION['mac'])
     rss = []
     timestamps = []
     for r in response['Items']:
@@ -102,8 +100,8 @@ def get_data_by_mac_address(mode, mac, APs):
         # Query real-time data
         elif mode == "live":
             now_in_sec = int(datetime.now().timestamp())
-            response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-                                      & Key('timestamp').gte(now_in_sec-5))
+            response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(
+                ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['time_window']))
             rss = get_live_rss_for_mac_address(response, mac)
 
             if rss == -1:

@@ -5,6 +5,7 @@ from scipy.optimize import curve_fit
 import matplotlib
 import matplotlib.pyplot as plt
 from kalman_filter import KalmanFilter
+import statistics
 
 
 def func(rss, pl0, gamma):
@@ -29,10 +30,10 @@ def fit():
         filtered_y.append(kalman.filter(int(p)))
 
     # Plot raw data
-    plt.plot(filtered_y, range(0, len(y)))
-    plt.xlabel('RSS')
-    plt.ylabel('Sample')
-    plt.show()
+    # plt.plot(filtered_y, range(0, len(y)))
+    # plt.xlabel('RSS')
+    # plt.ylabel('Sample')
+    # plt.show()
 
     time_ranges = []
     for i in range(13):
@@ -41,15 +42,26 @@ def fit():
         time_ranges.append((start_timestamp, end_timestamp))
 
     # Compute average RSS for every distance
+    data = []
     avgs = []
+    medians = []
+    i = 0
     for s, e in time_ranges:
-        sum = 0
-        count = 0
+        single_data = []
         for p in t:
             if p in range(s, e):
-                sum += filtered_y[t.index(p)]
-                count += 1
-        avgs.append(sum/count)
+                single_data.append(filtered_y[t.index(p)])
+        data.append(single_data)
+        medians.append(statistics.median(single_data))
+        avgs.append(statistics.mean(single_data))
+
+        # Plot raw data histograms
+        # plt.hist(single_data, bins=20, histtype='bar', label=i)
+        i += 1
+
+    plt.hist(data[:6], bins=30, label=range(0, 6))
+    plt.legend(loc='upper right')
+    plt.show()
 
     # Plot averaged data
     plt.plot(avgs, range(0, len(avgs)))

@@ -1,5 +1,6 @@
 TRILATERATION = {
 ***REMOVED***
+    'time_window': 5,
     # 'mac': ***REMOVED***, #nikos
     # experiment 1
     # 'aps': [
@@ -61,8 +62,8 @@ TRILATERATION = {
     #     }
 
     # ],
-    # 'start': '14 Jun 2019 17:30',
-    # 'end': '14 Jun 2019 17:45'
+    'start': '14 Jun 2019 17:30',
+    'end': '14 Jun 2019 17:45'
 
     # live
     # 'aps': [
@@ -102,10 +103,6 @@ TRILATERATION = {
             'id': 3,
             'xy': (1.742, 4.7)
         },
-        # {
-        #     'id': 10,
-        #     'xy': (0, 10.8)
-        # },
         {
             'id': 4,
             'xy': (1.742, 12.3)
