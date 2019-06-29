@@ -79,7 +79,7 @@ def run(mode):
     global r
     r = {}
     for ap, rss in dict_of_rss.items():
-        if rss > -60:  # threshold
+        if rss > TRILATERATION['rss_threshold']:
             estimated_distance = log(rss)
             r[ap] = estimated_distance
             print('The estimated distance of the AP of RSS %d is %d is %f' %
@@ -145,7 +145,7 @@ def main():
     # run_kalman_filter_rss(29)
 
     # Mode 1: Trilateration on historical data
-    run("hist")
+    # run("hist")
 
     # Mode 2: Trilateration in real-time
     # while(True):

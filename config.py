@@ -1,5 +1,6 @@
 TRILATERATION = {
 ***REMOVED***
+    'rss_threshold': -60,
     'time_window': 5,
     # 'mac': ***REMOVED***, #nikos
     # experiment 1
@@ -62,8 +63,8 @@ TRILATERATION = {
     #     }
 
     # ],
-    'start': '14 Jun 2019 17:30',
-    'end': '14 Jun 2019 17:45'
+    # 'start': '14 Jun 2019 17:30',
+    # 'end': '14 Jun 2019 17:45',
 
     # live
     # 'aps': [
