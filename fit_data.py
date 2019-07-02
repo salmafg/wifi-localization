@@ -63,6 +63,11 @@ def fit():
     plt.legend(loc='upper right')
     plt.show()
 
+    # Plot collective RSS histogram
+    plt.hist(y, bins=30)
+    plt.xlabel('RSS')
+    plt.show()
+
     # Plot averaged data
     plt.plot(avgs, range(0, len(avgs)))
 
