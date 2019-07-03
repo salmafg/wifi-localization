@@ -17,6 +17,9 @@ from nls import nls
 from trilateration import *
 import pyrebase
 from fit_data import fit
+from particle_filter import create_gaussian_particles
+from shapely.geometry import Point, Polygon, LinearRing
+from shapely.ops import nearest_points
 
 
 dynamodb = boto3.resource('dynamodb')
@@ -113,7 +116,7 @@ def run(mode):
 
         # Correct angle deviation
         localization = rotate(localization, GEO['deviation'])
-        print("Corrected localization: ", localization)
+        print("Localization: ", localization)
 
         # Draw
         # draw(estimated_localization, localization, p, r)
@@ -126,6 +129,14 @@ def run(mode):
         # Compute absolute localization
         lat = GEO['origin'][0] + localization[1]*GEO['oneMeterLat']
         lng = GEO['origin'][1] + localization[0]*GEO['oneMeterLng']
+
+        # Project point to building if outside
+        polygon = Polygon(BUILDING)
+        point = Point(lat, lng)
+        if not polygon.contains(point):
+            p1, _ = nearest_points(polygon, point)
+            lat, lng = p1.x, p1.y
+            print("Projected point: ", (lat, lng))
 
         # Push data to Firebase
         data = {
@@ -148,11 +159,14 @@ def main():
     # run("hist")
 
     # Mode 2: Trilateration in real-time
-    # while(True):
-    #     run("live")
+    while(True):
+        run("live")
 
     # Fit curve
-    fit()
+    # fit()
+
+    # Particle filter
+    # print(create_gaussian_particles([0, 1, 2], [0, 1, 2], 1000))
 
 
 if __name__ == "__main__":

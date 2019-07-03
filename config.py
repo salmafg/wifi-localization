@@ -1,7 +1,7 @@
 TRILATERATION = {
 ***REMOVED***
     'rss_threshold': -60,
-    'time_window': 5,
+    'time_window': 4,
     # 'mac': ***REMOVED***, #nikos
     # experiment 1
     # 'aps': [
@@ -173,6 +173,31 @@ LOG = {
     'pl0': -32.573,
     'gamma': 2.707
 }
+
+PARTICLE = {
+    'n': 10000,
+    'radius': 1
+}
+
+BUILDING = [
+    [
+        48.2629735,
+        11.6673035
+    ],
+    [
+        48.2629987,
+        11.667139
+    ],
+    [
+        48.2632102,
+        11.6673691
+    ],
+    [
+        48.2632305,
+        11.6672018
+        
+    ]
+]
 
 CURVE = {
     'ap': 29,
