@@ -2,6 +2,7 @@ import math
 from datetime import datetime
 from config import TRILATERATION
 import statistics
+import numpy as np
 import boto3
 from boto3.dynamodb.conditions import Key
 
@@ -117,3 +118,19 @@ def get_live_rss_for_mac_address(response, mac):
         if (r['payload']['mac']) == mac:
             return r['payload']['rssi']
     return -1
+
+
+def slope(p1, p2):
+    """
+    Computes the slope of two points
+    """
+    m = (p1[1] - p2[1]) / (p1[0] - p2[0])
+    return m
+
+
+def angle(m1, m2):
+    """
+    Computes the angle between two lines in degrees
+    """
+    a = math.degrees(math.atan((m2 - m1) / (1 + m1 * m2)))
+    return a

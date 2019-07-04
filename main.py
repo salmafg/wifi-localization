@@ -2,7 +2,6 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta
 import time
-import json
 import numpy as np
 import math
 from config import *
@@ -20,6 +19,7 @@ from fit_data import fit
 from particle_filter import create_gaussian_particles
 from shapely.geometry import Point, Polygon, LinearRing
 from shapely.ops import nearest_points
+import gdop
 
 
 dynamodb = boto3.resource('dynamodb')
@@ -78,6 +78,14 @@ def run(mode):
     dict_of_rss = get_data_by_mac_address(
         mode, TRILATERATION['mac'], TRILATERATION['aps'])
 
+    # Compute uncertainty
+    if dict_of_rss:
+        uncertainty = statistics.mean(
+            list(dict_of_rss.values())) * len(list(dict_of_rss.values()))
+        # uncertainty = abs(round(uncertainty/100, 1))
+        uncertainty = 0
+        print('Uncertainty: ', uncertainty)
+
     # Distance estimates dictionary
     global r
     r = {}
@@ -108,11 +116,27 @@ def run(mode):
     if len(p3) == 3:
         args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
         estimated_localization = trilaterate(*args)
-        print("Trilateration estimation: ", estimated_localization)
+        print("Initial trilateration estimate: ", estimated_localization)
+
+        # Using APs with highest GDOP for trilateration
+        try:
+            loc = nls(estimated_localization, p, r)
+            gdops = gdop.compute_all(loc, p)
+            min_gdop = gdop.get_best_combination(gdops)
+            c = min_gdop[0]
+            print(gdops)
+            print(c)
+            p3 = {k: v for k, v in p.items() if k in c}
+            r3 = {k: v for k, v in r.items() if k in c}
+            args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
+            estimated_localization = trilaterate(*args)
+            print("New trilateration estimate: ", estimated_localization)
+        except Exception:
+            print('GDOP computation not possible, closest APs are: ', c)
 
         # Non-linear least squares
         localization = nls(estimated_localization, p, r)
-        print("NLS estimation: ", tuple(localization[:2]))
+        print("NLS estimate: ", tuple(localization[:2]))
 
         # Correct angle deviation
         localization = rotate(localization, GEO['deviation'])
@@ -130,18 +154,19 @@ def run(mode):
         lat = GEO['origin'][0] + localization[1]*GEO['oneMeterLat']
         lng = GEO['origin'][1] + localization[0]*GEO['oneMeterLng']
 
-        # Project point to building if outside
+        # Move invalid point inside building
         polygon = Polygon(BUILDING)
         point = Point(lat, lng)
         if not polygon.contains(point):
             p1, _ = nearest_points(polygon, point)
             lat, lng = p1.x, p1.y
-            print("Projected point: ", (lat, lng))
+            print("Physical location: ", (lat, lng))
 
         # Push data to Firebase
         data = {
             'lat': lat,
             'lng': lng,
+            'radius': str(uncertainty),
             'timestamp': str(datetime.now())
         }
         db.child(firebase_directory).push(data)
@@ -168,6 +193,14 @@ def main():
     # Particle filter
     # print(create_gaussian_particles([0, 1, 2], [0, 1, 2], 1000))
 
+    # gdops = gdop.compute_all((1, 1), {'21': 2, '55': 5, '56': 9, '57': 6})
+    gdop.compute((1, 1), {'21': 2, '55': 5, '56': 9, '57': 6})
+    # c = gdop.get_best_combination(gdops)
+    # print(c)
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass

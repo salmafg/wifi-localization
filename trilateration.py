@@ -13,6 +13,6 @@ def trilaterate(P1, P2, P3, r1, r2, r3):
         x = (C*E - F*B) / (E*A - B*D)
         y = (C*D - A*F) / (B*D - A*E)
     except ZeroDivisionError:
-        print("error: division by zero, returning (0, 0)..")
+        print("error: division by zero, returning (0, 0)")
         return (0, 0)
     return (x, y)
