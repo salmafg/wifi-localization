@@ -87,7 +87,6 @@ def run(mode):
         print('Uncertainty: ', uncertainty)
 
     # Distance estimates dictionary
-    global r
     r = {}
     for ap, rss in dict_of_rss.items():
         if rss > TRILATERATION['rss_threshold']:
@@ -97,7 +96,6 @@ def run(mode):
                   (rss, ap, estimated_distance))
 
     # Points dictionary
-    global p
     p = {}
     for i in r:
         p[i] = next(item for item in TRILATERATION['aps']
@@ -110,7 +108,6 @@ def run(mode):
     # Trilateration
     p3 = {k: v for k, v in p.items() if k in c}
     r3 = {k: v for k, v in r.items() if k in c}
-    global localization
     localization = None
 
     if len(p3) == 3:
@@ -119,13 +116,15 @@ def run(mode):
         print("Initial trilateration estimate: ", estimated_localization)
 
         # Using APs with highest GDOP for trilateration
+        loc = nls(estimated_localization, p, r)
+        gdops = gdop.compute_all(loc, r)
         try:
             loc = nls(estimated_localization, p, r)
-            gdops = gdop.compute_all(loc, p)
+            gdops = gdop.compute_all(loc, r)
             min_gdop = gdop.get_best_combination(gdops)
             c = min_gdop[0]
-            print(gdops)
-            print(c)
+            # print(gdops)
+            print("Minimum GDoP: ", c)
             p3 = {k: v for k, v in p.items() if k in c}
             r3 = {k: v for k, v in r.items() if k in c}
             args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
