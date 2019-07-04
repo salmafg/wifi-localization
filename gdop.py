@@ -18,6 +18,9 @@ def compute_all(loc, r):
 
 
 def compute(loc, r):
+    """
+    https://en.wikipedia.org/wiki/Dilution_of_precision_(navigation)
+    """
     A = np.ones((len(r), 3))
     i = 0
     for ap, ri in r.items():
