@@ -1,7 +1,9 @@
+import math
+
 import scipy
 from scipy.optimize import least_squares
+
 from utils import distance
-import math
 
 
 def residuals(guess, p, r):

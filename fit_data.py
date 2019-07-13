@@ -1,11 +1,13 @@
-import numpy as np
-from utils import convert_date_to_secs, get_rss_fluctuation_by_mac_address
-from config import CURVE
-from scipy.optimize import curve_fit
+import statistics
+
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import curve_fit
+
+from config import CURVE
 from kalman_filter import KalmanFilter
-import statistics
+from utils import convert_date_to_secs, get_rss_fluctuation_by_mac_address
 
 
 def func(rss, pl0, gamma):

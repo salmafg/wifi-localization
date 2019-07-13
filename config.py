@@ -1,8 +1,15 @@
 TRILATERATION = {
 ***REMOVED***
+    'macs': {
+        'samsung': '***REMOVED***',  # samsung
+        ***REMOVED***  # oneplus
+        ***REMOVED***  # nikos
+        ***REMOVED***  # nam
+        ***REMOVED***  # george
+    },
     'rss_threshold': -60,
     'time_window': 4,
-    # 'mac': ***REMOVED***, #nikos
+
     # experiment 1
     # 'aps': [
     #     {
@@ -67,8 +74,8 @@ TRILATERATION = {
     #     }
 
     # ],
-    # 'start': '14 Jun 2019 17:30',
-    # 'end': '14 Jun 2019 17:45',
+    'start': '11 Jul 2019 12:00',
+    'end': '11 Jul 2019 15:00',
 
     # live
     # 'aps': [
@@ -104,7 +111,7 @@ TRILATERATION = {
             'id': 9,
             'xy': (-4.3, 5.5)
         },
-         {
+        {
             'id': 11,
             'xy': (-0.58, 9.5)
         },
@@ -146,25 +153,25 @@ TRILATERATION = {
         }
     ],
 
-# 1m experiment
-# 'aps': [
-#         {
-#             'id': 0,
-#             'xy': (0.0, 0.0)
-#         },
-#         {
-#             'id': 10,
-#             'xy': (0, 0)
-#         },
-#         {
-#             'id': 6,
-#             'xy': (0, 0)
-#         },
-#         {
-#             'id': 29,
-#             'xy': (0, 0)
-#         }
-#     ],
+    # 1m experiment
+    # 'aps': [
+    #         {
+    #             'id': 0,
+    #             'xy': (0.0, 0.0)
+    #         },
+    #         {
+    #             'id': 10,
+    #             'xy': (0, 0)
+    #         },
+    #         {
+    #             'id': 6,
+    #             'xy': (0, 0)
+    #         },
+    #         {
+    #             'id': 29,
+    #             'xy': (0, 0)
+    #         }
+    #     ],
 }
 
 RSS = {
@@ -178,7 +185,12 @@ FIREBASE = {
     'apiKey': '***REMOVED***',
     'authDomain': 'dynamicml-86ae8.firebaseapp.com',
     'databaseURL': 'https://dynamicml-86ae8.firebaseio.com',
-    'storageBucket': 'dynamicml-86ae8.appspot.com'
+    'storageBucket': 'dynamicml-86ae8.appspot.com',
+    'table': 'trilateration-data'
+}
+
+GMPLOT = {
+    'apiKey': '***REMOVED***'
 }
 
 GEO = {
@@ -201,21 +213,20 @@ PARTICLE = {
 
 BUILDING = [
     [
-        48.2629735,
-        11.6673035
-    ],
-    [
-        48.2629987,
-        11.667139
+        48.2632305,
+        11.6672018
     ],
     [
         48.2632102,
         11.6673691
     ],
     [
-        48.2632305,
-        11.6672018
-        
+        48.2629735,
+        11.6673035
+    ],
+    [
+        48.2629987,
+        11.667139
     ]
 ]
 

@@ -1,11 +1,14 @@
+import itertools
 import math
-from datetime import datetime
-from config import TRILATERATION
 import statistics
-import numpy as np
+from datetime import datetime
+
 import boto3
+import numpy as np
+import pyrebase
 from boto3.dynamodb.conditions import Key
 
+from config import FIREBASE, TRILATERATION
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
@@ -39,9 +42,13 @@ def convert_date_to_secs(date):
     return int(date.timestamp())
 
 
+def flatten(l):
+    return list(itertools.chain(*l))
+
+
 def compute_mean_rss_for_mac_address(response, mac):
     rss_values = []
-    for r in response['Items']:
+    for r in response:
         if (r['payload']['mac']) == mac:
             # print(r['payload'])
             rss_values.append(r['payload']['rssi'])
@@ -52,7 +59,7 @@ def compute_mean_rss_for_mac_address(response, mac):
 
 def compute_median_rss_for_mac_address(response, mac):
     rss_values = []
-    for r in response['Items']:
+    for r in response:
         if (r['payload']['mac']) == mac:
             # print(r['payload'])
             rss_values.append(r['payload']['rssi'])
@@ -71,11 +78,35 @@ def get_rss_fluctuation_by_mac_address(start, end, ap):
     avg_rss = compute_mean_rss_for_mac_address(response, TRILATERATION['mac'])
     rss = []
     timestamps = []
-    for r in response['Items']:
+    for r in response:
         if (r['payload']['mac']) == TRILATERATION['mac']:
             rss.append(int(r['payload']['rssi']))
             timestamps.append(int(r['payload']['timestamp']))
     return(timestamps, rss, avg_rss)
+
+
+def get_hist_data():
+    data = []
+    for ap in TRILATERATION['aps']:
+        # Query historical data in a specified time range
+        start_in_sec = convert_date_to_secs(TRILATERATION['start'])
+        end_in_sec = convert_date_to_secs(TRILATERATION['end'])
+
+        response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
+                                  & Key('timestamp').between(start_in_sec, end_in_sec))
+        data.append(response['Items'])
+    return flatten(data)
+
+
+def get_live_data():
+    data = []
+    for ap in TRILATERATION['aps']:
+        # Query real-time data
+        now_in_sec = int(datetime.now().timestamp())
+        response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(
+            ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['time_window']))
+        data.append(response['Items'])
+    return flatten(data)
 
 
 def get_data_by_mac_address(mode, mac, APs):
@@ -95,7 +126,8 @@ def get_data_by_mac_address(mode, mac, APs):
                                       & Key('timestamp').between(start_in_sec, end_in_sec))
 
             # rss = compute_avg_rss_for_mac_address(response, mac)
-            rss = compute_median_rss_for_mac_address(response, mac)
+            rss = compute_median_rss_for_mac_address(
+                response['Items'], mac)
             dict_of_processed_rss[ap['id']] = rss
 
         # Query real-time data
@@ -103,7 +135,7 @@ def get_data_by_mac_address(mode, mac, APs):
             now_in_sec = int(datetime.now().timestamp())
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(
                 ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['time_window']))
-            rss = get_live_rss_for_mac_address(response, mac)
+            rss = get_live_rss_for_mac_address(response['Items'], mac)
 
             if rss == -1:
                 print("warning: no live data detected for AP", ap['id'])
@@ -114,9 +146,16 @@ def get_data_by_mac_address(mode, mac, APs):
 
 
 def get_live_rss_for_mac_address(response, mac):
-    for r in response['Items']:
-        if (r['payload']['mac']) == mac:
+    for r in response:
+        if r['payload']['mac'] == mac:
             return r['payload']['rssi']
+    return -1
+
+
+def get_live_rss_for_ap_and_mac_address(response, mac, ap):
+    for r in response:
+       if r['payload']['mac'] == mac and r['payload']['sensor_id'] == ap:
+           return r['payload']['rssi']
     return -1
 
 
@@ -134,3 +173,11 @@ def angle(m1, m2):
     """
     a = math.degrees(math.atan((m2 - m1) / (1 + m1 * m2)))
     return a
+
+
+def read_from_firebase(tablename):
+    firebase = pyrebase.initialize_app(FIREBASE)
+    db = firebase.database()
+    query = db.child(tablename).get()
+    results = list(query.val().values())
+    return results

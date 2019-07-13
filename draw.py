@@ -18,7 +18,7 @@ def draw(el, l, p, r):
     window.clear()
     window.colormode(255)
     window.title("Trilateration")
-    scale = 60
+    scale = 20
 
     for i in p:
         myPen.color(tuple(np.random.choice(range(256), size=3)))
@@ -69,5 +69,5 @@ def draw(el, l, p, r):
     myPen.write("x1", True, font=FONT)
     myPen.penup()
 
-    window.exitonclick()
-    # sleep(2)
+#     window.exitonclick()
+    sleep(2)
