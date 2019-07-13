@@ -8,7 +8,7 @@ TRILATERATION = {
         ***REMOVED***  # george
     },
     'rss_threshold': -60,
-    'time_window': 4,
+    'window_size': 4,
 
     # experiment 1
     # 'aps': [
@@ -74,8 +74,8 @@ TRILATERATION = {
     #     }
 
     # ],
-    'start': '11 Jul 2019 12:00',
-    'end': '11 Jul 2019 15:00',
+    'start': '12 Jul 2019 16:45',
+    'end': '12 Jul 2019 17:00',
 
     # live
     # 'aps': [

@@ -25,7 +25,6 @@ def distance(p1, p2):
 def rotate(point, angle):
     """
     Rotate a point clockwise by a given angle around a given origin.
-
     The angle should be given in radians.
     """
     angle = math.radians(-angle)
@@ -54,9 +53,7 @@ def compute_mean_rss_for_mac_address(response, mac):
     rss_values = []
     for r in response:
         if (r['payload']['mac']) == mac:
-            # print(r['payload'])
             rss_values.append(r['payload']['rssi'])
-    avg_rss = statistics.mean(rss_values)
     if rss_values:
         return statistics.mean(rss_values)
     return -1
@@ -112,7 +109,7 @@ def get_live_data():
         # Query real-time data
         now_in_sec = int(datetime.now().timestamp())
         response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(
-            ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['time_window']))
+            ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['window_size']))
         data.append(response['Items'])
     return flatten(data)
 
@@ -142,7 +139,7 @@ def get_data_by_mac_address(mode, mac, APs):
         elif mode == "live":
             now_in_sec = int(datetime.now().timestamp())
             response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(
-                ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['time_window']))
+                ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['window_size']))
             rss = get_live_rss_for_mac_address(response['Items'], mac)
 
             if rss == -1:
@@ -164,6 +161,18 @@ def get_live_rss_for_ap_and_mac_address(response, mac, ap):
     for r in response:
         if r['payload']['mac'] == mac and r['payload']['sensor_id'] == ap:
             return r['payload']['rssi']
+    return -1
+
+
+def replay_hist_data(response, mac, ap, window_start):
+    """
+    Mimics live streaming for historical data
+    """
+    window_end = window_start + TRILATERATION['window_size']
+    for r in response:
+        r = r['payload']
+        if r['mac'] == mac and r['sensor_id'] == ap and r['timestamp'] >= window_start and r['timestamp'] <= window_end:
+            return r['rssi']
     return -1
 
 

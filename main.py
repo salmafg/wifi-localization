@@ -27,6 +27,8 @@ from utils import *
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
 
+window_start = convert_date_to_secs(TRILATERATION['start'])
+
 
 def run_kalman_filter_rss():
 
@@ -89,7 +91,7 @@ def run_all(mode):
                     dict_of_rss[ap['id']] = rss
             if dict_of_rss:
                 dict_of_macs[mac] = dict_of_rss
-    else:
+    elif mode == "live":
         data = get_live_data()
         # print(data)
         for _, mac in TRILATERATION['macs'].items():
@@ -100,7 +102,21 @@ def run_all(mode):
                     dict_of_rss[ap['id']] = rss
             if dict_of_rss:
                 dict_of_macs[mac] = dict_of_rss
+    elif mode == "replay":
+        global window_start
+        data = get_hist_data()
+        for _, mac in TRILATERATION['macs'].items():
+            dict_of_rss = {}
+            for ap in TRILATERATION['aps']:
+                rss = replay_hist_data(data, mac, ap['id'], window_start)
+                if rss != -1:
+                    dict_of_rss[ap['id']] = rss
+            if dict_of_rss:
+                dict_of_macs[mac] = dict_of_rss
+        window_start += TRILATERATION['window_size']
     # print(dict_of_macs)
+    else:
+        raise ValueError("Invalid run mode")
 
     for mac, dict_of_rss in dict_of_macs.items():
         r = {}
@@ -248,8 +264,6 @@ def run(mode):
         print("Initial trilateration estimate: ", estimated_localization)
 
         # Using APs with highest GDOP for trilateration
-        loc = nls(estimated_localization, p, r)
-        gdops = gdop.compute_all(loc, r)
         try:
             loc = nls(estimated_localization, p, r)
             gdops = gdop.compute_all(loc, r)
@@ -263,7 +277,7 @@ def run(mode):
             estimated_localization = trilaterate(*args)
             print("New trilateration estimate: ", estimated_localization)
         except Exception:
-            print('GDOP computation not possible, closest APs are: ', c)
+            pass
 
         # Non-linear least squares
         localization = nls(estimated_localization, p, r)
@@ -318,7 +332,11 @@ def main():
     # Mode 2: Trilateration in real-time
     # while(True):
     #     run_all("live")
-    run_all("hist")
+
+    # Mode 3: Replay historical data
+    window_end = convert_date_to_secs(TRILATERATION['end'])
+    for i in range(window_start, window_end, TRILATERATION['window_size']):
+        run_all("replay")
 
     # Fit curve
     # fit()
