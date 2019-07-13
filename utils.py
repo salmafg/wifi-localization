@@ -45,46 +45,47 @@ def flatten(l):
     return list(itertools.chain(*l))
 
 
-def compute_mean_rss_for_mac_address(response, mac):
+def compute_mean_rss(response, mac, ap):
     """
     Computes the mean RSS for a certain mac address over
       a time period if data exists otherwise returns -1
     """
     rss_values = []
     for r in response:
-        if (r['payload']['mac']) == mac:
+        if (r['payload']['mac']) == mac and r['payload']['sensor_id'] == ap:
             rss_values.append(r['payload']['rssi'])
     if rss_values:
         return statistics.mean(rss_values)
     return -1
 
 
-def compute_median_rss_for_mac_address(response, mac):
+def compute_median_rss(response, mac, ap):
     """
     Computes the median RSS for a certain mac address over
      a time period if data exists otherwise returns -1
     """
     rss_values = []
     for r in response:
-        if (r['payload']['mac']) == mac:
+        if (r['payload']['mac']) == mac and r['payload']['sensor_id'] == ap:
             rss_values.append(r['payload']['rssi'])
     if rss_values:
         return statistics.median(rss_values)
     return -1
 
 
-def get_rss_fluctuation_by_mac_address(start, end, ap):
+def get_rss_fluctuation(start, end, ap, mac):
     start_in_sec = convert_date_to_secs(start)
     end_in_sec = convert_date_to_secs(end)
 
     response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap)
                               & Key('timestamp').between(start_in_sec, end_in_sec))
 
-    avg_rss = compute_mean_rss_for_mac_address(response, TRILATERATION['mac'])
+    avg_rss = compute_mean_rss(
+        response['Items'], mac, ap)
     rss = []
     timestamps = []
-    for r in response:
-        if (r['payload']['mac']) == TRILATERATION['mac']:
+    for r in response['Items']:
+        if r['payload']['mac'] == mac and r['payload']['sensor_id'] == ap:
             rss.append(int(r['payload']['rssi']))
             timestamps.append(int(r['payload']['timestamp']))
     return(timestamps, rss, avg_rss)
@@ -114,49 +115,6 @@ def get_live_data():
     return flatten(data)
 
 
-def get_data_by_mac_address(mode, mac, APs):
-    """
-    Query data from AWS using mac address
-    """
-    dict_of_processed_rss = {}
-
-    for ap in APs:
-
-        # Query historical data in a specified time range
-        if mode == "hist":
-            start_in_sec = convert_date_to_secs(TRILATERATION['start'])
-            end_in_sec = convert_date_to_secs(TRILATERATION['end'])
-
-            response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-                                      & Key('timestamp').between(start_in_sec, end_in_sec))
-
-            # rss = compute_avg_rss_for_mac_address(response, mac)
-            rss = compute_median_rss_for_mac_address(
-                response['Items'], mac)
-            dict_of_processed_rss[ap['id']] = rss
-
-        # Query real-time data
-        elif mode == "live":
-            now_in_sec = int(datetime.now().timestamp())
-            response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(
-                ap['id']) & Key('timestamp').gte(now_in_sec-TRILATERATION['window_size']))
-            rss = get_live_rss_for_mac_address(response['Items'], mac)
-
-            if rss == -1:
-                print("warning: no live data detected for AP", ap['id'])
-            else:
-                dict_of_processed_rss[ap['id']] = rss
-
-    return dict_of_processed_rss
-
-
-def get_live_rss_for_mac_address(response, mac):
-    for r in response:
-        if r['payload']['mac'] == mac:
-            return r['payload']['rssi']
-    return -1
-
-
 def get_live_rss_for_ap_and_mac_address(response, mac, ap):
     for r in response:
         if r['payload']['mac'] == mac and r['payload']['sensor_id'] == ap:
@@ -174,22 +132,6 @@ def replay_hist_data(response, mac, ap, window_start):
         if r['mac'] == mac and r['sensor_id'] == ap and r['timestamp'] >= window_start and r['timestamp'] <= window_end:
             return r['rssi']
     return -1
-
-
-def slope(p1, p2):
-    """
-    Computes the slope of two points
-    """
-    m = (p1[1] - p2[1]) / (p1[0] - p2[0])
-    return m
-
-
-def angle(m1, m2):
-    """
-    Computes the angle between two lines in degrees
-    """
-    a = math.degrees(math.atan((m2 - m1) / (1 + m1 * m2)))
-    return a
 
 
 def read_from_firebase(tablename):

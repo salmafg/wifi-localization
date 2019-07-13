@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 
 from config import CURVE
 from kalman_filter import KalmanFilter
-from utils import convert_date_to_secs, get_rss_fluctuation_by_mac_address
+from utils import convert_date_to_secs, get_rss_fluctuation
 
 
 def func(rss, pl0, gamma):
@@ -22,8 +22,8 @@ def func(rss, pl0, gamma):
 def fit():
 
     # Parse data from config file
-    t, y, _ = get_rss_fluctuation_by_mac_address(
-        CURVE['0m_start'], CURVE['12m_end'], CURVE['ap'])
+    t, y, _ = get_rss_fluctuation(
+        CURVE['0m_start'], CURVE['12m_end'], CURVE['ap'], CURVE['mac'])
 
     # Apply Kalman filter
     kalman = KalmanFilter(0.01, 0.1)

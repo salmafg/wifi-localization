@@ -1,11 +1,11 @@
 TRILATERATION = {
 ***REMOVED***
     'macs': {
-        'samsung': '***REMOVED***',  # samsung
-        ***REMOVED***  # oneplus
-        ***REMOVED***  # nikos
-        ***REMOVED***  # nam
-        ***REMOVED***  # george
+        'samsung': '***REMOVED***',
+        ***REMOVED***
+        ***REMOVED***
+        ***REMOVED***
+        ***REMOVED***
     },
     'rss_threshold': -60,
     'window_size': 4,
@@ -176,7 +176,7 @@ TRILATERATION = {
 
 RSS = {
 ***REMOVED***
-    'ap': 6,
+    'ap': 55,
     'start': '24 May 2019 16:30',
     'end': '24 May 2019 16:59'
 }
@@ -232,6 +232,7 @@ BUILDING = [
 
 CURVE = {
     'ap': 29,
+***REMOVED***
     '0m_start': '27 Jun 2019 16:42',
     '0m_end': '27 Jun 2019 16:45',
     '1m_start': '27 Jun 2019 16:46',

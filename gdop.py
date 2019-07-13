@@ -1,8 +1,9 @@
-import numpy as np
-import math
 import itertools
+import math
 from operator import itemgetter
-from utils import slope, angle
+
+import numpy as np
+
 from config import TRILATERATION
 
 
