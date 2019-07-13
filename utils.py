@@ -47,25 +47,33 @@ def flatten(l):
 
 
 def compute_mean_rss_for_mac_address(response, mac):
+    """
+    Computes the mean RSS for a certain mac address over
+      a time period if data exists otherwise returns -1
+    """
     rss_values = []
     for r in response:
         if (r['payload']['mac']) == mac:
             # print(r['payload'])
             rss_values.append(r['payload']['rssi'])
     avg_rss = statistics.mean(rss_values)
-    # print(avg_rss)
-    return avg_rss
+    if rss_values:
+        return statistics.mean(rss_values)
+    return -1
 
 
 def compute_median_rss_for_mac_address(response, mac):
+    """
+    Computes the median RSS for a certain mac address over
+     a time period if data exists otherwise returns -1
+    """
     rss_values = []
     for r in response:
         if (r['payload']['mac']) == mac:
-            # print(r['payload'])
             rss_values.append(r['payload']['rssi'])
-    median_rss = statistics.median(rss_values)
-    # print(median_rss)
-    return median_rss
+    if rss_values:
+        return statistics.median(rss_values)
+    return -1
 
 
 def get_rss_fluctuation_by_mac_address(start, end, ap):
@@ -92,8 +100,8 @@ def get_hist_data():
         start_in_sec = convert_date_to_secs(TRILATERATION['start'])
         end_in_sec = convert_date_to_secs(TRILATERATION['end'])
 
-        response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap['id'])
-                                  & Key('timestamp').between(start_in_sec, end_in_sec))
+        response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(
+            ap['id']) & Key('timestamp').between(start_in_sec, end_in_sec))
         data.append(response['Items'])
     return flatten(data)
 
@@ -154,8 +162,8 @@ def get_live_rss_for_mac_address(response, mac):
 
 def get_live_rss_for_ap_and_mac_address(response, mac, ap):
     for r in response:
-       if r['payload']['mac'] == mac and r['payload']['sensor_id'] == ap:
-           return r['payload']['rssi']
+        if r['payload']['mac'] == mac and r['payload']['sensor_id'] == ap:
+            return r['payload']['rssi']
     return -1
 
 

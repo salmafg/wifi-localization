@@ -76,7 +76,7 @@ def run_kalman_filter_rss():
 
 def run_all(mode):
     """
-    Runs localization for all detected mac devices 
+    Runs localization for multiple mac devices 
     """
     dict_of_macs = {}
     if mode == "hist":
@@ -85,8 +85,10 @@ def run_all(mode):
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss = compute_median_rss_for_mac_address(data, mac)
-                dict_of_rss[ap['id']] = rss
-            dict_of_macs[mac] = dict_of_rss
+                if rss != -1:
+                    dict_of_rss[ap['id']] = rss
+            if dict_of_rss:
+                dict_of_macs[mac] = dict_of_rss
     else:
         data = get_live_data()
         # print(data)
@@ -140,8 +142,6 @@ def run_all(mode):
             print("Initial trilateration estimate: ", estimated_localization)
 
             # Using APs with highest GDOP for trilateration
-            loc = nls(estimated_localization, p, r)
-            gdops = gdop.compute_all(loc, r)
             try:
                 loc = nls(estimated_localization, p, r)
                 gdops = gdop.compute_all(loc, r)
@@ -155,8 +155,8 @@ def run_all(mode):
                         r3[c[0]], r3[c[1]], r3[c[2]])
                 estimated_localization = trilaterate(*args)
                 print("New trilateration estimate: ", estimated_localization)
-            except Exception:
-                print('GDOP computation not possible, closest APs are: ', c)
+            except np.linalg.LinAlgError:
+                pass
 
             # Non-linear least squares
             localization = nls(estimated_localization, p, r)
@@ -318,7 +318,7 @@ def main():
     # Mode 2: Trilateration in real-time
     # while(True):
     #     run_all("live")
-    # run_all("hist")
+    run_all("hist")
 
     # Fit curve
     # fit()
@@ -331,7 +331,7 @@ def main():
     # c = gdop.get_best_combination(gdops)
     # print(c)
 
-    kmeans.cluster()
+    # kmeans.cluster()
 
 
 if __name__ == "__main__":
