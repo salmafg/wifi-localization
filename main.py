@@ -27,6 +27,7 @@ from utils import *
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
 
+history = {}
 window_start = convert_date_to_secs(TRILATERATION['start'])
 
 
@@ -80,6 +81,7 @@ def run(mode):
     """
     Runs localization for multiple mac devices 
     """
+    global history
     dict_of_macs = {}
     if mode == "hist":
         data = get_hist_data()
@@ -204,6 +206,9 @@ def run(mode):
                 lat, lng = p1.x, p1.y
             print("Physical location: ", (lat, lng))
 
+            # Save localization history
+            history.setdefault(mac, []).append((lat, lng))
+
             # Push data to Firebase
             data = {
                 'mac': mac,
@@ -231,9 +236,9 @@ def main():
     #     run("live")
 
     # Mode 3: Replay historical data
-    # window_end = convert_date_to_secs(TRILATERATION['end'])
-    # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run("replay")
+    window_end = convert_date_to_secs(TRILATERATION['end'])
+    for _ in range(window_start, window_end, TRILATERATION['window_size']):
+        run("replay")
 
     # Fit curve
     # fit()
@@ -246,7 +251,7 @@ def main():
     # c = gdop.get_best_combination(gdops)
     # print(c)
 
-    kmeans.cluster()
+    # kmeans.cluster()
 
 
 if __name__ == "__main__":
