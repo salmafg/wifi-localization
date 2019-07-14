@@ -27,6 +27,10 @@ from utils import *
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
 
+firebase = pyrebase.initialize_app(FIREBASE)
+db = firebase.database()
+firebase_directory = FIREBASE['table']
+
 history = {}
 window_start = convert_date_to_secs(TRILATERATION['start'])
 
@@ -83,6 +87,7 @@ def run(mode):
     """
     global history
     dict_of_macs = {}
+
     if mode == "hist":
         data = get_hist_data()
         for _, mac in TRILATERATION['macs'].items():
@@ -94,6 +99,7 @@ def run(mode):
             if dict_of_rss:
                 dict_of_macs[mac] = dict_of_rss
         # print(dict_of_macs)
+
     elif mode == "live":
         data = get_live_data()
         # print(data)
@@ -105,6 +111,7 @@ def run(mode):
                     dict_of_rss[ap['id']] = rss
             if dict_of_rss:
                 dict_of_macs[mac] = dict_of_rss
+
     elif mode == "replay":
         global window_start
         data = get_hist_data()
@@ -117,6 +124,7 @@ def run(mode):
             if dict_of_rss:
                 dict_of_macs[mac] = dict_of_rss
         window_start += TRILATERATION['window_size']
+
     else:
         raise ValueError("Invalid run mode")
 
@@ -189,11 +197,6 @@ def run(mode):
             # Draw
             # draw(estimated_localization, localization, p, r)
 
-            # Connect Firebase
-            firebase = pyrebase.initialize_app(FIREBASE)
-            db = firebase.database()
-            firebase_directory = FIREBASE['table']
-
             # Compute absolute localization
             lat = GEO['origin'][0] + localization[1]*GEO['oneMeterLat']
             lng = GEO['origin'][1] + localization[0]*GEO['oneMeterLng']
@@ -207,26 +210,24 @@ def run(mode):
             print("Physical location: ", (lat, lng))
 
             # Save localization history
-            history.setdefault(mac, []).append((lat, lng))
+            history.setdefault(user, []).append((lat, lng))
 
             # Push data to Firebase
-            data = {
-                'mac': mac,
-                'lat': lat,
-                'lng': lng,
-                'radius': str(uncertainty),
-                'timestamp': str(datetime.now())
-            }
-            db.child(firebase_directory).push(data)
+            if mode == 'live':
+                data = {
+                    'mac': mac,
+                    'lat': lat,
+                    'lng': lng,
+                    'radius': str(uncertainty),
+                    'timestamp': str(datetime.now())
+                }
+                db.child(firebase_directory).push(data)
 
         elif localization != None:
             print("info: trilateration not possible, using last value ", localization)
 
 
 def main():
-
-    # Kalman filter
-    # run_kalman_filter_rss()
 
     # Mode 1: Trilateration on historical data
     # run("hist")
@@ -239,9 +240,14 @@ def main():
     window_end = convert_date_to_secs(TRILATERATION['end'])
     for _ in range(window_start, window_end, TRILATERATION['window_size']):
         run("replay")
+    print(history)
+    find_in_building(history)
 
     # Fit curve
     # fit()
+
+    # Kalman filter
+    # run_kalman_filter_rss()
 
     # Particle filter
     # print(create_gaussian_particles([0, 1, 2], [0, 1, 2], 1000))

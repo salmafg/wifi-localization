@@ -4,11 +4,15 @@ import statistics
 from datetime import datetime
 
 import boto3
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pyrebase
 from boto3.dynamodb.conditions import Key
+from shapely.geometry import LinearRing, Point, Polygon
 
 from config import FIREBASE, TRILATERATION
+from map import map
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
@@ -80,8 +84,7 @@ def get_rss_fluctuation(start, end, ap, mac):
     response = tableIoT.query(KeyConditionExpression=Key('sensor_id').eq(ap)
                               & Key('timestamp').between(start_in_sec, end_in_sec))
 
-    avg_rss = compute_mean_rss(
-        response['Items'], mac, ap)
+    avg_rss = compute_mean_rss(response['Items'], mac, ap)
     rss = []
     timestamps = []
     for r in response['Items']:
@@ -140,3 +143,37 @@ def read_from_firebase(tablename):
     query = db.child(tablename).get()
     results = list(query.val().values())
     return results
+
+
+def find_in_building(history):
+    """
+    Plots a histogram with the occurences of users in rooms on a map
+    and returns the results as a dictionary
+    """
+    semantic_localization = {}
+    for user, loc in history.items():
+        a = []
+        for l in loc:
+            for room in map:
+                polygon = Polygon(room['geometry']['coordinates'])
+                point = Point(l[1], l[0])
+                if polygon.contains(point):
+                    a.append(room['properties']['ref'])
+                    break
+        if a:
+            semantic_localization[user] = a
+
+    rooms = list(set(flatten(semantic_localization.values())))
+    for i in range(len(semantic_localization.values())):
+        counts = []
+        for r in rooms:
+            counts.append(list(semantic_localization.values())[i].count(r))
+        plt.bar(rooms, counts, width=0.35, label=list(
+            semantic_localization.keys())[i])
+
+    plt.xlabel('Room')
+    plt.title('Localization in the time span from %s to %s' %
+              (TRILATERATION['start'], TRILATERATION['end']))
+    plt.legend(loc='upper right')
+    plt.show()
+    return semantic_localization

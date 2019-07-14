@@ -7,6 +7,8 @@ TRILATERATION = {
         ***REMOVED***
         ***REMOVED***
     },
+    'start': '12 Jul 2019 16:45',
+    'end': '12 Jul 2019 16:47',
     'rss_threshold': -60,
     'window_size': 4,
 
@@ -74,8 +76,6 @@ TRILATERATION = {
     #     }
 
     # ],
-    'start': '12 Jul 2019 16:45',
-    'end': '12 Jul 2019 17:00',
 
     # live
     # 'aps': [
