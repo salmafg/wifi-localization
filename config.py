@@ -4,13 +4,15 @@ TRILATERATION = {
         'samsung': '***REMOVED***',
         ***REMOVED***
         ***REMOVED***
-        ***REMOVED***
-        ***REMOVED***
+        'nam': 'd8:68:c3:7d:2e:c7',
+        ***REMOVED***,
+        'tanmaya': '6c:c7:ec:9a:3c:06',
+        'pavlos': '74:23:44:96:c5:42'
     },
-    'start': '12 Jul 2019 16:45',
-    'end': '12 Jul 2019 16:47',
+    'start': '12 Jul 2019 15:45',
+    'end': '12 Jul 2019 16:00',
     'rss_threshold': -60,
-    'window_size': 4,
+    'window_size': 5,
 
     # experiment 1
     # 'aps': [

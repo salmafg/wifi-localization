@@ -1,4 +1,5 @@
 import math
+import subprocess
 import time
 from datetime import datetime, timedelta
 from heapq import nlargest
@@ -13,13 +14,13 @@ from shapely.geometry import LinearRing, Point, Polygon
 from shapely.ops import nearest_points
 
 import gdop
+import hmm
 import kmeans
 from config import *
 from draw import draw
 from fit_data import fit
 from kalman_filter import KalmanFilter
 from nls import nls
-from particle_filter import create_gaussian_particles
 from path_loss import log
 from trilateration import *
 from utils import *
@@ -33,6 +34,7 @@ firebase_directory = FIREBASE['table']
 
 history = {}
 window_start = convert_date_to_secs(TRILATERATION['start'])
+model = None
 
 
 def run_kalman_filter_rss():
@@ -81,15 +83,14 @@ def run_kalman_filter_rss():
     plt.show()
 
 
-def run(mode):
-    """
+def run(mode, data=None):
+    '''
     Runs localization for multiple mac devices 
-    """
+    '''
     global history
     dict_of_macs = {}
 
-    if mode == "hist":
-        data = get_hist_data()
+    if mode == 'hist':
         for _, mac in TRILATERATION['macs'].items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
@@ -100,7 +101,7 @@ def run(mode):
                 dict_of_macs[mac] = dict_of_rss
         # print(dict_of_macs)
 
-    elif mode == "live":
+    elif mode == 'live':
         data = get_live_data()
         # print(data)
         for _, mac in TRILATERATION['macs'].items():
@@ -112,9 +113,8 @@ def run(mode):
             if dict_of_rss:
                 dict_of_macs[mac] = dict_of_rss
 
-    elif mode == "replay":
+    elif mode == 'replay':
         global window_start
-        data = get_hist_data()
         for _, mac in TRILATERATION['macs'].items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
@@ -126,7 +126,7 @@ def run(mode):
         window_start += TRILATERATION['window_size']
 
     else:
-        raise ValueError("Invalid run mode")
+        raise ValueError('error: invalid run mode')
 
     for mac, dict_of_rss in dict_of_macs.items():
         r = {}
@@ -136,8 +136,8 @@ def run(mode):
             if dict_of_rss:
                 uncertainty = statistics.mean(
                     list(dict_of_rss.values())) * len(list(dict_of_rss.values()))
-            uncertainty = abs(round(uncertainty/100, 1))
-            # uncertainty = 0
+            # uncertainty = abs(round(uncertainty/100, 1))
+            uncertainty = 0
             # print('Uncertainty: ', uncertainty)
 
             # Distance estimation
@@ -155,7 +155,7 @@ def run(mode):
 
         c = sorted(r, key=r.get)[:3]
         if c:
-            print("Closest to access points", ', '.join(str(i) for i in c))
+            print('Closest to access points:', ', '.join(str(i) for i in c))
 
         # Trilateration
         p3 = {k: v for k, v in p.items() if k in c}
@@ -165,34 +165,35 @@ def run(mode):
         if len(p3) == 3:
             args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
             estimated_localization = trilaterate(*args)
-            print("Initial trilateration estimate: ", estimated_localization)
+            print('Initial trilateration estimate:', estimated_localization)
 
             # Using APs with highest GDOP for trilateration
             try:
                 loc = nls(estimated_localization, p, r)
                 gdops = gdop.compute_all(loc, r)
                 min_gdop = gdop.get_best_combination(gdops)
-                c = min_gdop[0]
-                # print(gdops)
-                print("Minimum GDoP: ", c)
-                p3 = {k: v for k, v in p.items() if k in c}
-                r3 = {k: v for k, v in r.items() if k in c}
-                args = (p3[c[0]], p3[c[1]], p3[c[2]],
-                        r3[c[0]], r3[c[1]], r3[c[2]])
-                estimated_localization = trilaterate(*args)
-                print("New trilateration estimate: ", estimated_localization)
+                g = min_gdop[0]
+                print('Minimum GDoP:', ', '.join(str(i) for i in g))
+                if set(c) != set(g):
+                    p3 = {k: v for k, v in p.items() if k in g}
+                    r3 = {k: v for k, v in r.items() if k in g}
+                    args = (p3[g[0]], p3[g[1]], p3[g[2]],
+                            r3[g[0]], r3[g[1]], r3[g[2]])
+                    estimated_localization = trilaterate(*args)
+                    print('New trilateration estimate:',
+                          estimated_localization)
             except np.linalg.LinAlgError:
                 pass
 
             # Non-linear least squares
             localization = nls(estimated_localization, p, r)
-            print("NLS estimate: ", tuple(localization[:2]))
+            print('NLS estimate:', tuple(localization[:2]))
 
             # Correct angle deviation
             localization = rotate(localization, GEO['deviation'])
             user = list(TRILATERATION['macs'].keys())[
                 list(TRILATERATION['macs'].values()).index(mac)]
-            print("Localization of %s is %s" % (user, localization))
+            print('Relative location:', localization)
 
             # Draw
             # draw(estimated_localization, localization, p, r)
@@ -207,41 +208,64 @@ def run(mode):
             if not polygon.contains(point):
                 p1, _ = nearest_points(polygon, point)
                 lat, lng = p1.x, p1.y
-            print("Physical location: ", (lat, lng))
+            print('Physical location:', (lat, lng))
 
             # Save localization history
             history.setdefault(user, []).append((lat, lng))
 
+            # Map coordinates to room number
+            try:
+                room = list(find_in_building(
+                    {user: [(lat, lng)]}).values())[0][0]
+                print('>> %s was observed in %s' % (user, room))
+            except IndexError:
+                print('error: unknown indoor location')
+
+            # HMM prediction
+            try:
+                print('HMM prediction:', hmm.predict(model, room))
+            except:
+                pass
+
             # Push data to Firebase
-            if mode == 'live':
-                data = {
-                    'mac': mac,
-                    'lat': lat,
-                    'lng': lng,
-                    'radius': str(uncertainty),
-                    'timestamp': str(datetime.now())
-                }
-                db.child(firebase_directory).push(data)
+            data = {
+                'mac': mac,
+                'lat': lat,
+                'lng': lng,
+                'radius': str(uncertainty),
+                'timestamp': str(datetime.now())
+            }
+            db.child(firebase_directory).push(data)
 
         elif localization != None:
-            print("info: trilateration not possible, using last value ", localization)
+            print('info: trilateration not possible, using last value', localization)
 
 
 def main():
 
     # Mode 1: Trilateration on historical data
-    # run("hist")
+    # data = get_hist_data()
+    # run('hist', data)
 
     # Mode 2: Trilateration in real-time
     # while(True):
-    #     run("live")
+    #     run('live', None)
 
     # Mode 3: Replay historical data
+    data = get_hist_data()
     window_end = convert_date_to_secs(TRILATERATION['end'])
     for _ in range(window_start, window_end, TRILATERATION['window_size']):
-        run("replay")
-    print(history)
-    find_in_building(history)
+        run('replay', data)
+    semantic_localization = find_in_building(history)
+    print(semantic_localization)
+
+    global model
+    model = hmm.fit(semantic_localization)
+    hmm.predict_all(model, semantic_localization)
+    plt.show()
+    window_end = convert_date_to_secs(TRILATERATION['end'])
+    for _ in range(window_start, window_end, TRILATERATION['window_size']):
+        run('replay', data)
 
     # Fit curve
     # fit()
@@ -260,8 +284,9 @@ def main():
     # kmeans.cluster()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     try:
         main()
+        subprocess.Popen(['notify-send', "Localization complete."])
     except KeyboardInterrupt:
         pass
