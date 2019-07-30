@@ -1,7 +1,10 @@
 import itertools
+import json
 import math
 import statistics
+import time
 from datetime import datetime
+from operator import itemgetter
 
 import boto3
 import matplotlib
@@ -130,11 +133,13 @@ def replay_hist_data(response, mac, ap, window_start):
     Mimics live streaming for historical data
     """
     window_end = window_start + TRILATERATION['window_size']
-    for r in response:
-        r = r['payload']
-        if r['mac'] == mac and r['sensor_id'] == ap and r['timestamp'] >= window_start and r['timestamp'] <= window_end:
-            return r['rssi']
-    return -1
+    temp_dict = next((r for r in response if r['payload']['mac'] == mac and r['sensor_id'] ==
+                      ap and r['payload']['timestamp'] >= window_start and r['payload']['timestamp'] <= window_end), -1)
+    if temp_dict != -1:
+        rss = temp_dict['payload']['rssi']
+        del temp_dict
+        return rss, response
+    return -1, response
 
 
 def read_from_firebase(tablename):
@@ -145,7 +150,19 @@ def read_from_firebase(tablename):
     return results
 
 
-def find_in_building(history):
+def get_room_by_physical_location(lat, lng):
+    """
+    Returns the corresponding room name for a given physical location
+    """
+    point = Point(lng, lat)
+    for room in map:
+        polygon = Polygon(room['geometry']['coordinates'])
+        if polygon.contains(point):
+            return room['properties']['ref']
+    return None
+
+
+def semantic_localization(history):
     """
     Plots a histogram with the occurences of users in rooms on a map
     and returns the results as a dictionary
@@ -154,12 +171,7 @@ def find_in_building(history):
     for user, loc in history.items():
         a = []
         for l in loc:
-            for room in map:
-                polygon = Polygon(room['geometry']['coordinates'])
-                point = Point(l[1], l[0])
-                if polygon.contains(point):
-                    a.append(room['properties']['ref'])
-                    break
+            a.append(get_room_by_physical_location(l[0], l[1]))
         if a:
             semantic_localization[user] = a
 
@@ -175,5 +187,31 @@ def find_in_building(history):
     plt.title('Localization in the time span from %s to %s' %
               (TRILATERATION['start'], TRILATERATION['end']))
     plt.legend(loc='upper right')
-    plt.show()
+    # plt.show()
+
     return semantic_localization
+
+
+def get_room_physical_location(room):
+    room = next(d for (index, d) in enumerate(map)
+                if d['properties']['ref'] == room)
+    center = Polygon(room['geometry']['coordinates']).centroid
+    return center.x, center.y
+
+
+def get_closest_polygon(x, y):
+
+    point = Point(x, y)
+    min_dist = 10000
+    closest_polygon = None
+    closest_room = None
+
+    for m in map:
+        polygon = Polygon(m['geometry']['coordinates'])
+        dist = polygon.distance(point)
+        if dist < min_dist:
+            min_dist = dist
+            closest_polygon = polygon
+            closest_room = m['properties']['ref']
+
+    return closest_polygon, closest_room

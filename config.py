@@ -9,10 +9,12 @@ TRILATERATION = {
         'tanmaya': '6c:c7:ec:9a:3c:06',
         'pavlos': '74:23:44:96:c5:42'
     },
-    'start': '12 Jul 2019 15:45',
-    'end': '12 Jul 2019 16:00',
+    'start': '29 Jul 2019 16:05',
+    'end': '29 Jul 2019 16:13',
     'rss_threshold': -60,
-    'window_size': 5,
+    'window_size': 4,
+    'max_uncertainty': 10,
+    'default_uncertainty': 2,
 
     # experiment 1
     # 'aps': [
@@ -122,8 +124,12 @@ TRILATERATION = {
             'xy': (-4.3, 9.5)
         },
         {
+            'id': 27,
+            'xy': (-0.9, 11)
+        },
+        {
             'id': 12,
-            'xy': (5.74, 6.5)
+            'xy': (5.74, 5.3)
         },
         {
             'id': 2,
@@ -132,6 +138,10 @@ TRILATERATION = {
         {
             'id': 3,
             'xy': (1.742, 4.7)
+        },
+        {
+            'id': 10,
+            'xy': (0, 11)
         },
         {
             'id': 4,
@@ -152,6 +162,58 @@ TRILATERATION = {
         {
             'id': 7,
             'xy': (0, 27.5)
+        },
+        {
+            'id': 13,
+            'xy': (2.342, 9)
+        },
+        {
+            'id': 22,
+            'xy': (5.8, 9.35)
+        },
+        {
+            'id': 14,
+            'xy': (-0.6, 17)
+        },
+        {
+            'id': 23,
+            'xy': (-4.23, 17.4)
+        },
+        {
+            'id': 26,
+            'xy': (-4.23, 15.5)
+        },
+        {
+            'id': 15,
+            'xy': (-4.25, 27)
+        },
+        {
+            'id': 17,
+            'xy': (-1.2, 26.35)
+        },
+        {
+            'id': 24,
+            'xy': (-2.2, 29.7)
+        },
+        {
+            'id': 16,
+            'xy': (2.342, 20)
+        },
+        {
+            'id': 25,
+            'xy': (5.75, 19.4)
+        },
+        {
+            'id': 21,
+            'xy': (-2.3, 7)
+        },
+        {
+            'id': 19,
+            'xy': (-0.6, 1.5)
+        },
+        {
+            'id': 18,
+            'xy': (-3.8, 2.25)
         }
     ],
 
@@ -188,11 +250,14 @@ FIREBASE = {
     'authDomain': 'dynamicml-86ae8.firebaseapp.com',
     'databaseURL': 'https://dynamicml-86ae8.firebaseio.com',
     'storageBucket': 'dynamicml-86ae8.appspot.com',
-    'table': 'trilateration-data'
+    'table': 'trilateration-multiple-users'
 }
 
 GMPLOT = {
-    'apiKey': '***REMOVED***'
+    'apiKey': '***REMOVED***',
+    'lat': 48.2630651,
+    'lng': 11.6673068,
+    'zoom': 20
 }
 
 GEO = {
@@ -215,20 +280,124 @@ PARTICLE = {
 
 BUILDING = [
     [
-        48.2632305,
-        11.6672018
+        # top left corner of 65
+        48.26323043677,
+        11.667202678409998
     ],
     [
+        # bottom left corner of 65
+        48.26319858483,
+        11.66719411951
+    ],
+    [
+        # bottom right corner of 65
+        48.263190731259996,
+        11.667264372279998
+    ],
+    [
+        # top right corner of 59
+        48.26312493587,
+        11.667246910470002
+    ],
+    [
+        # top left corner of 59
+        48.26313324745,
+        11.66717652535
+    ],
+    [
+        # bottom left corner of 59
+        48.26309840837,
+        11.667166622429999
+    ],
+    [
+        # bottom right corner of 59
+        48.26309167078001,
+        11.66723831338
+    ],
+    [
+        # top right corner of 55
+        48.26305770850999,
+        11.66722948654
+    ],
+    [
+        # top left corner of 55
+        48.26306478529,
+        11.66715765479
+    ],
+    [
+        # bottom left corner of 51
+        48.26296540162,
+        11.66713031952
+    ],
+    [
+        # bottom right corner of 51
+        48.262956432050004,
+        11.667202948659998
+    ],
+    [
+        # bottom left corner of 52
+        48.2629474679,
+        11.66723369139
+    ],
+    [
+        # bottom left corner of 54
+        48.262980931769995,
+        11.667242030250002
+    ],
+    [
+        # bottom right corner of 54
+        48.26297377099,
+        11.66730437166
+    ],
+    [
+        # top right corner of 56
+        48.26303747637,
+        11.66732180111
+    ],
+    [
+        # top left corner of 56
+        48.263045106739995,
+        11.667258689150001
+    ],
+    [
+        # bottom left corner of 62
+        48.263114891410005,
+        11.66727780111
+    ],
+    [
+        # bottom right corner of 62
+        48.263107114629996,
+        11.667339942519998
+    ],
+    [
+        # top right corner of 62
+        48.263141032680004,
+        11.66735018685
+    ],
+    [
+        # top left corner of 62
+        48.26314912105,
+        11.667286974879998
+    ],
+    [
+        # top left corner of 64
+        48.263181023769995,
+        11.66729583961
+    ],
+    [
+        # top right corner of 64
+        48.26317281219999,
+        11.66735848102
+    ],
+    [
+        # top right corner of finger
         48.2632102,
         11.6673691
     ],
     [
-        48.2629735,
-        11.6673035
-    ],
-    [
-        48.2629987,
-        11.667139
+        # top left corner of 65
+        48.26323043677,
+        11.667202678409998
     ]
 ]
 

@@ -1,3 +1,4 @@
+import json
 import math
 import subprocess
 import time
@@ -5,6 +6,7 @@ from datetime import datetime, timedelta
 from heapq import nlargest
 
 import boto3
+import gmplot
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,11 +32,13 @@ tableIoT = dynamodb.Table('db_demo')
 
 firebase = pyrebase.initialize_app(FIREBASE)
 db = firebase.database()
-firebase_directory = FIREBASE['table']
+firebase_table = FIREBASE['table']
 
-history = {}
-window_start = convert_date_to_secs(TRILATERATION['start'])
+geo_history = {}
+sem_history = {}
+hmm_predictions = {}
 model = None
+window_start = convert_date_to_secs(TRILATERATION['start'])
 
 
 def run_kalman_filter_rss():
@@ -87,7 +91,6 @@ def run(mode, data=None):
     '''
     Runs localization for multiple mac devices 
     '''
-    global history
     dict_of_macs = {}
 
     if mode == 'hist':
@@ -115,10 +118,13 @@ def run(mode, data=None):
 
     elif mode == 'replay':
         global window_start
+        day = datetime.fromtimestamp(window_start).strftime('%A')
+        time = datetime.fromtimestamp(
+            window_start).strftime('%H:%M:%S')
         for _, mac in TRILATERATION['macs'].items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
-                rss = replay_hist_data(data, mac, ap['id'], window_start)
+                rss, data = replay_hist_data(data, mac, ap['id'], window_start)
                 if rss != -1:
                     dict_of_rss[ap['id']] = rss
             if dict_of_rss:
@@ -132,20 +138,14 @@ def run(mode, data=None):
         r = {}
         for ap, rss in dict_of_rss.items():
 
-            # Compute uncertainty
-            if dict_of_rss:
-                uncertainty = statistics.mean(
-                    list(dict_of_rss.values())) * len(list(dict_of_rss.values()))
-            # uncertainty = abs(round(uncertainty/100, 1))
-            uncertainty = 0
-            # print('Uncertainty: ', uncertainty)
-
             # Distance estimation
+            user = list(TRILATERATION['macs'].keys())[
+                list(TRILATERATION['macs'].values()).index(mac)]
             if rss != -1 and rss > TRILATERATION['rss_threshold']:
                 estimated_distance = log(rss)
                 r[ap] = estimated_distance
-                print('The estimated distance of the AP of RSS %d is %d is %f' %
-                      (rss, ap, estimated_distance))
+                print('The estimated distance of %s from AP %d of RSS %d is %f' %
+                      (user, ap, rss, estimated_distance))
 
         # Points dictionary
         p = {}
@@ -172,6 +172,8 @@ def run(mode, data=None):
                 loc = nls(estimated_localization, p, r)
                 gdops = gdop.compute_all(loc, r)
                 min_gdop = gdop.get_best_combination(gdops)
+                uncertainty = min_gdop[1] if min_gdop[1] < TRILATERATION[
+                    'max_uncertainty'] else TRILATERATION['default_uncertainty']
                 g = min_gdop[0]
                 print('Minimum GDoP:', ', '.join(str(i) for i in g))
                 if set(c) != set(g):
@@ -183,7 +185,7 @@ def run(mode, data=None):
                     print('New trilateration estimate:',
                           estimated_localization)
             except np.linalg.LinAlgError:
-                pass
+                uncertainty = TRILATERATION['default_uncertainty']
 
             # Non-linear least squares
             localization = nls(estimated_localization, p, r)
@@ -202,40 +204,42 @@ def run(mode, data=None):
             lat = GEO['origin'][0] + localization[1]*GEO['oneMeterLat']
             lng = GEO['origin'][1] + localization[0]*GEO['oneMeterLng']
 
-            # Move invalid point inside building
-            polygon = Polygon(BUILDING)
-            point = Point(lat, lng)
-            if not polygon.contains(point):
-                p1, _ = nearest_points(polygon, point)
-                lat, lng = p1.x, p1.y
+            # Move invalid point inside building to a valid location
+            room = get_room_by_physical_location(lat, lng)
+            if not room:
+                closest_polygon, room = get_closest_polygon(lng, lat)
+                point = Point(lng, lat)
+                p1, _ = nearest_points(closest_polygon, point)
+                lng, lat = p1.x, p1.y
+                print("....point was moved to", room)
+
+            # Save localization history and write to file
+            # geo_history.setdefault(user, []).append((lat, lng))
+            # sem_history.setdefault(user, []).append(room)
+            # data = json.dumps(sem_history)
+            # f = open("data.json", "w")
+            # f.write(data)
+            # f.close()
+
+            # Print observation
+            if mode != 'live':
+                print('>> %s was observed in %s on %s %s' %
+                      (user, room, day, time))
+            else:
+                print('>> %s was just observed in %s' %
+                      (user, room))
             print('Physical location:', (lat, lng))
-
-            # Save localization history
-            history.setdefault(user, []).append((lat, lng))
-
-            # Map coordinates to room number
-            try:
-                room = list(find_in_building(
-                    {user: [(lat, lng)]}).values())[0][0]
-                print('>> %s was observed in %s' % (user, room))
-            except IndexError:
-                print('error: unknown indoor location')
-
-            # HMM prediction
-            try:
-                print('HMM prediction:', hmm.predict(model, room))
-            except:
-                pass
 
             # Push data to Firebase
             data = {
+                'user': user,
                 'mac': mac,
                 'lat': lat,
                 'lng': lng,
                 'radius': str(uncertainty),
                 'timestamp': str(datetime.now())
             }
-            db.child(firebase_directory).push(data)
+            db.child(firebase_table).push(data)
 
         elif localization != None:
             print('info: trilateration not possible, using last value', localization)
@@ -251,35 +255,26 @@ def main():
     # while(True):
     #     run('live', None)
 
-    # Mode 3: Replay historical data
+    # Mode 3: Replay historical data and parse observations to json
     data = get_hist_data()
+    print('Data retrieved.')
     window_end = convert_date_to_secs(TRILATERATION['end'])
     for _ in range(window_start, window_end, TRILATERATION['window_size']):
         run('replay', data)
-    semantic_localization = find_in_building(history)
-    print(semantic_localization)
+    # semantic_localization(geo_history)
+    # plt.show()
 
+    # Fit HMM from JSON and make predications
     global model
-    model = hmm.fit(semantic_localization)
-    hmm.predict_all(model, semantic_localization)
-    plt.show()
-    window_end = convert_date_to_secs(TRILATERATION['end'])
-    for _ in range(window_start, window_end, TRILATERATION['window_size']):
-        run('replay', data)
+    obs = json.loads(open('data.json').read())
+    model = hmm.fit(obs)
+    print(hmm.predict_all(model, obs, 'viterbi'))
 
     # Fit curve
     # fit()
 
     # Kalman filter
     # run_kalman_filter_rss()
-
-    # Particle filter
-    # print(create_gaussian_particles([0, 1, 2], [0, 1, 2], 1000))
-
-    # gdops = gdop.compute_all((1, 1), {'21': 2, '55': 5, '56': 9, '57': 6})
-    # gdop.compute((1, 1), {'21': 2, '55': 5, '56': 9, '57': 6})
-    # c = gdop.get_best_combination(gdops)
-    # print(c)
 
     # kmeans.cluster()
 
