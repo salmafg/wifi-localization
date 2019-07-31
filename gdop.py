@@ -39,31 +39,6 @@ def compute(loc, r):
     return gdop
 
 
-# def compute(loc, r):
-#     """
-#     Compute GDOP for a single combination
-#     """
-
-#     # Compute slopes
-#     slopes = []
-#     for ap, _ in r.items():
-#         xy = next(item for item in TRILATERATION['aps']
-#                   if item['id'] == int(ap))['xy']
-#         m = slope(loc, xy)
-#         slopes.append(m)
-#     line_combs = itertools.combinations(slopes, 2)
-
-#     # Compute angles
-#     angles = []
-#     for m1, m2 in line_combs:
-#         angles.append(angle(m1, m2))
-
-#     # Compute GDOP
-#     gdop = math.sqrt(
-#         3 / (math.sin(angles[0])**2 + math.sin(angles[1])**2 + math.sin(angles[2])**2))
-#     return gdop
-
-
 def get_best_combination(combinations):
     """
     Get the AP combination with the minimum GDOP

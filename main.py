@@ -167,25 +167,20 @@ def run(mode, data=None):
             estimated_localization = trilaterate(*args)
             print('Initial trilateration estimate:', estimated_localization)
 
-            # Using APs with highest GDOP for trilateration
+            # Compute uncertainty
             try:
                 loc = nls(estimated_localization, p, r)
                 gdops = gdop.compute_all(loc, r)
                 min_gdop = gdop.get_best_combination(gdops)
-                uncertainty = min_gdop[1] if min_gdop[1] < TRILATERATION[
-                    'max_uncertainty'] else TRILATERATION['default_uncertainty']
-                g = min_gdop[0]
-                print('Minimum GDoP:', ', '.join(str(i) for i in g))
-                if set(c) != set(g):
-                    p3 = {k: v for k, v in p.items() if k in g}
-                    r3 = {k: v for k, v in r.items() if k in g}
-                    args = (p3[g[0]], p3[g[1]], p3[g[2]],
-                            r3[g[0]], r3[g[1]], r3[g[2]])
-                    estimated_localization = trilaterate(*args)
-                    print('New trilateration estimate:',
-                          estimated_localization)
+                if min_gdop[1] > TRILATERATION['max_uncertainty']:
+                    uncertainty = TRILATERATION['max_uncertainty']
+                elif min_gdop[1] < TRILATERATION['min_uncertainty']:
+                    uncertainty = TRILATERATION['min_uncertainty']
+                else:
+                    uncertainty = round(min_gdop[1], 1)
             except np.linalg.LinAlgError:
                 uncertainty = TRILATERATION['default_uncertainty']
+            print('Uncertainty: %dm' % uncertainty)
 
             # Non-linear least squares
             localization = nls(estimated_localization, p, r)
@@ -252,23 +247,23 @@ def main():
     # run('hist', data)
 
     # Mode 2: Trilateration in real-time
-    # while(True):
-    #     run('live', None)
+    while(True):
+        run('live', None)
 
     # Mode 3: Replay historical data and parse observations to json
-    data = get_hist_data()
-    print('Data retrieved.')
-    window_end = convert_date_to_secs(TRILATERATION['end'])
-    for _ in range(window_start, window_end, TRILATERATION['window_size']):
-        run('replay', data)
+    # data = get_hist_data()
+    # print('Data retrieved.')
+    # window_end = convert_date_to_secs(TRILATERATION['end'])
+    # for _ in range(window_start, window_end, TRILATERATION['window_size']):
+    #     run('replay', data)
     # semantic_localization(geo_history)
     # plt.show()
 
     # Fit HMM from JSON and make predications
-    global model
-    obs = json.loads(open('data.json').read())
-    model = hmm.fit(obs)
-    print(hmm.predict_all(model, obs, 'viterbi'))
+    # global model
+    # obs = json.loads(open('data.json').read())
+    # model = hmm.fit(obs)
+    # print(hmm.predict_all(model, obs, 'viterbi'))
 
     # Fit curve
     # fit()

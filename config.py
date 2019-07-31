@@ -13,6 +13,7 @@ TRILATERATION = {
     'end': '29 Jul 2019 16:13',
     'rss_threshold': -60,
     'window_size': 4,
+    'min_uncertainty': 1,
     'max_uncertainty': 10,
     'default_uncertainty': 2,
 
