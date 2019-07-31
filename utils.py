@@ -162,34 +162,22 @@ def get_room_by_physical_location(lat, lng):
     return None
 
 
-def semantic_localization(history):
+def plot_localization(history):
     """
     Plots a histogram with the occurences of users in rooms on a map
     and returns the results as a dictionary
     """
-    semantic_localization = {}
-    for user, loc in history.items():
-        a = []
-        for l in loc:
-            a.append(get_room_by_physical_location(l[0], l[1]))
-        if a:
-            semantic_localization[user] = a
-
-    rooms = list(set(flatten(semantic_localization.values())))
-    for i in range(len(semantic_localization.values())):
+    rooms = list(set(flatten(history.values())))
+    for k, v in history.items():
         counts = []
         for r in rooms:
-            counts.append(list(semantic_localization.values())[i].count(r))
-        plt.bar(rooms, counts, width=0.35, label=list(
-            semantic_localization.keys())[i])
-
+            counts.append(list(v).count(r))
+        plt.bar(rooms, counts, width=0.35, label=k)
     plt.xlabel('Room')
     plt.title('Localization in the time span from %s to %s' %
               (TRILATERATION['start'], TRILATERATION['end']))
     plt.legend(loc='upper right')
-    # plt.show()
-
-    return semantic_localization
+    plt.show()
 
 
 def get_room_physical_location(room):

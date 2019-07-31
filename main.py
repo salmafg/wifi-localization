@@ -201,21 +201,23 @@ def run(mode, data=None):
 
             # Move invalid point inside building to a valid location
             room = get_room_by_physical_location(lat, lng)
-            if not room:
-                closest_polygon, room = get_closest_polygon(lng, lat)
+            if room is None:
+                closest_polygon, closest_room = get_closest_polygon(lng, lat)
                 point = Point(lng, lat)
                 p1, _ = nearest_points(closest_polygon, point)
                 lng, lat = p1.x, p1.y
+                room = closest_room
                 print("....point was moved to", room)
 
             # Write to file if uncertainty is not too high
             if uncertainty < TRILATERATION['max_uncertainty']:
                 geo_history.setdefault(user, []).append((lat, lng))
                 sem_history.setdefault(user, []).append(room)
-                data = json.dumps(sem_history)
-                f = open("data.json", "w")
-                f.write(data)
-                f.close()
+                if mode == 'live':
+                    data = json.dumps(sem_history)
+                    f = open("data.json", "w")
+                    f.write(data)
+                    f.close()
 
             # Print observation
             if mode != 'live':
@@ -252,19 +254,18 @@ def main():
     #     run('live', None)
 
     # Mode 3: Replay historical data and parse observations to json
-    # data = get_hist_data()
-    # print('Data retrieved.')
-    # window_end = convert_date_to_secs(TRILATERATION['end'])
-    # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data)
-    # semantic_localization(geo_history)
-    # plt.show()
+    data = get_hist_data()
+    print('Data retrieved.')
+    window_end = convert_date_to_secs(TRILATERATION['end'])
+    for _ in range(window_start, window_end, TRILATERATION['window_size']):
+        run('replay', data)
+    plot_localization(sem_history)
 
     # Fit HMM from JSON and make predications
-    global model
-    obs = json.loads(open('data.json').read())
-    model = hmm.fit(obs)
-    hmm.predict_all(model, obs, 'map')
+    # global model
+    # obs = json.loads(open('data.json').read())
+    # model = hmm.fit(obs)
+    # hmm.predict_all(model, obs, 'map')
 
     # Fit curve
     # fit()

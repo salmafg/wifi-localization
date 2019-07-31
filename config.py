@@ -7,7 +7,8 @@ TRILATERATION = {
         'nam': 'd8:68:c3:7d:2e:c7',
         ***REMOVED***,
         'tanmaya': '6c:c7:ec:9a:3c:06',
-        'pavlos': '74:23:44:96:c5:42'
+        'pavlos': '74:23:44:96:c5:42',
+        'nexus': '8c:3a:e3:96:e2:6e'
     },
     'start': '29 Jul 2019 16:05',
     'end': '29 Jul 2019 16:13',
@@ -130,7 +131,7 @@ TRILATERATION = {
         },
         {
             'id': 12,
-            'xy': (5.74, 5.3)
+            'xy': (5.74, 5.26)
         },
         {
             'id': 2,

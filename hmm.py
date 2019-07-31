@@ -4,7 +4,6 @@ from operator import itemgetter
 import matplotlib.pyplot as plt
 import numpy as np
 from hmmlearn import hmm
-from more_itertools import unique_everseen
 
 from map import map
 from utils import flatten
