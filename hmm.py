@@ -1,3 +1,4 @@
+import warnings
 from operator import itemgetter
 
 import matplotlib.pyplot as plt
@@ -7,6 +8,8 @@ from more_itertools import unique_everseen
 
 from map import map
 from utils import flatten
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 states = [
     '00.11.065', '00.11.062', '00.11.059', '00.11.056', '00.11.055',
@@ -60,15 +63,10 @@ def predict_all(model, obs, alg):
     """
     Takes a dictionary of observations and returns a sequence of predictions
     """
-    X = []
-    len_X = []
-    for _, rooms in obs.items():
-        temp = [states.index(i) for i in rooms]
-        X.append(temp)
-        len_X.append(len(temp))
-    # print('x:', X)
+    X, len_X = tidy_data(obs)
+    # print(X, len_X)
 
-    obs_labels = [states[i] for i in flatten(X)]
+    obs_labels = [states[i] for i in X]
     # print('Obs: ', obs_labels)
 
     _, seq = model.decode(np.atleast_2d(X).T, len_X, algorithm=alg)
@@ -78,14 +76,15 @@ def predict_all(model, obs, alg):
     # print('HMM preds: ', pred_labels)
 
     # Plot obervations and predictions
-    plt.plot(obs_labels, ".-", label="observations", ms=6,
-             mfc="blue", alpha=0.7)
-    plt.legend(loc='best')
-    plt.plot(pred_labels, ".-", label="predictions", ms=6,
-             mfc="orange", alpha=0.7)
-    plt.legend(loc='best')
-    if alg == 'map':
-        plt.title('Maximum A Posteriori Estimation')
-    else:
-        plt.title('Viterbi')
-    plt.show()
+    for index, l in enumerate(len_X):
+        start_index = 0
+        if index != 0:
+            start_index = index+len_X[index-1]
+        plt.plot(obs_labels[start_index:start_index+l], ".-", label="observations", ms=6,
+                 mfc="blue", alpha=0.7)
+        plt.legend(loc='best')
+        plt.plot(pred_labels[start_index:start_index+l], ".-", label="predictions", ms=6,
+                 mfc="orange", alpha=0.7)
+        plt.legend(loc='best')
+        plt.title('user=%s, alg=%s' % (list(obs.keys())[index], alg))
+        plt.show()

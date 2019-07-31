@@ -35,7 +35,7 @@ db = firebase.database()
 firebase_table = FIREBASE['table']
 
 geo_history = {}
-sem_history = {}
+sem_history = json.loads(open('data.json').read())
 hmm_predictions = {}
 model = None
 window_start = convert_date_to_secs(TRILATERATION['start'])
@@ -208,13 +208,14 @@ def run(mode, data=None):
                 lng, lat = p1.x, p1.y
                 print("....point was moved to", room)
 
-            # Save localization history and write to file
-            # geo_history.setdefault(user, []).append((lat, lng))
-            # sem_history.setdefault(user, []).append(room)
-            # data = json.dumps(sem_history)
-            # f = open("data.json", "w")
-            # f.write(data)
-            # f.close()
+            # Write to file if uncertainty is not too high
+            if uncertainty < TRILATERATION['max_uncertainty']:
+                geo_history.setdefault(user, []).append((lat, lng))
+                sem_history.setdefault(user, []).append(room)
+                data = json.dumps(sem_history)
+                f = open("data.json", "w")
+                f.write(data)
+                f.close()
 
             # Print observation
             if mode != 'live':
@@ -247,8 +248,8 @@ def main():
     # run('hist', data)
 
     # Mode 2: Trilateration in real-time
-    while(True):
-        run('live', None)
+    # while(True):
+    #     run('live', None)
 
     # Mode 3: Replay historical data and parse observations to json
     # data = get_hist_data()
@@ -260,10 +261,10 @@ def main():
     # plt.show()
 
     # Fit HMM from JSON and make predications
-    # global model
-    # obs = json.loads(open('data.json').read())
-    # model = hmm.fit(obs)
-    # print(hmm.predict_all(model, obs, 'viterbi'))
+    global model
+    obs = json.loads(open('data.json').read())
+    model = hmm.fit(obs)
+    hmm.predict_all(model, obs, 'map')
 
     # Fit curve
     # fit()
