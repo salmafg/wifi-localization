@@ -1,0 +1,8 @@
+boto3
+gmplot
+hmmlearn
+matplotlib
+numpy
+pyrebase
+shapely
+sklearn

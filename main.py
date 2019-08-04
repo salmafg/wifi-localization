@@ -1,5 +1,8 @@
+import csv
 import json
 import math
+import random
+import string
 import subprocess
 import time
 from datetime import datetime, timedelta
@@ -34,11 +37,16 @@ firebase = pyrebase.initialize_app(FIREBASE)
 db = firebase.database()
 firebase_table = FIREBASE['table']
 
+dict_of_macs = TRILATERATION['macs']
+window_start = convert_date_to_secs(TRILATERATION['start'])
 geo_history = {}
 sem_history = json.loads(open('data.json').read())
 hmm_predictions = {}
 model = None
-window_start = convert_date_to_secs(TRILATERATION['start'])
+
+with open('usernames.csv', 'r') as f:
+    reader = csv.reader(f)
+    usernames = flatten(list(reader))
 
 
 def run_kalman_filter_rss():
@@ -91,56 +99,72 @@ def run(mode, data=None):
     '''
     Runs localization for multiple mac devices 
     '''
-    dict_of_macs = {}
+    global usernames
+    global window_start
+    dict_of_mac_rss = {}
 
     if mode == 'hist':
-        for _, mac in TRILATERATION['macs'].items():
+        for mac, _ in dict_of_macs.items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss = compute_median_rss(data, mac, ap['id'])
                 if rss != -1:
                     dict_of_rss[ap['id']] = rss
             if dict_of_rss:
-                dict_of_macs[mac] = dict_of_rss
-        # print(dict_of_macs)
+                dict_of_mac_rss[mac] = dict_of_rss
+        # print(dict_of_mac_rss)
 
     elif mode == 'live':
         data = get_live_data()
-        # print(data)
-        for _, mac in TRILATERATION['macs'].items():
+        for mac, _ in dict_of_macs.items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss = get_live_rss_for_ap_and_mac_address(data, mac, ap['id'])
                 if rss != -1:
                     dict_of_rss[ap['id']] = rss
             if dict_of_rss:
-                dict_of_macs[mac] = dict_of_rss
+                dict_of_mac_rss[mac] = dict_of_rss
+
+    elif mode == 'live-all':
+        data = get_live_data()
+        for r in data:
+            if r['payload']['mac'] not in dict_of_macs:
+                random.shuffle(usernames)
+                username = usernames.pop()
+                dict_of_macs[r['payload']['mac']] = username
+        for mac, _ in dict_of_macs.items():
+            dict_of_rss = {}
+            for ap in TRILATERATION['aps']:
+                rss = get_live_rss_for_ap_and_mac_address(data, mac, ap['id'])
+                if rss != -1:
+                    dict_of_rss[ap['id']] = rss
+            if dict_of_rss:
+                dict_of_mac_rss[mac] = dict_of_rss
 
     elif mode == 'replay':
-        global window_start
         day = datetime.fromtimestamp(window_start).strftime('%A')
         time = datetime.fromtimestamp(
             window_start).strftime('%H:%M:%S')
-        for _, mac in TRILATERATION['macs'].items():
+        for mac, _ in dict_of_macs.items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss, data = replay_hist_data(data, mac, ap['id'], window_start)
                 if rss != -1:
                     dict_of_rss[ap['id']] = rss
             if dict_of_rss:
-                dict_of_macs[mac] = dict_of_rss
+                dict_of_mac_rss[mac] = dict_of_rss
         window_start += TRILATERATION['window_size']
 
     else:
         raise ValueError('error: invalid run mode')
 
-    for mac, dict_of_rss in dict_of_macs.items():
+    for mac, dict_of_rss in dict_of_mac_rss.items():
         r = {}
         for ap, rss in dict_of_rss.items():
 
             # Distance estimation
-            user = list(TRILATERATION['macs'].keys())[
-                list(TRILATERATION['macs'].values()).index(mac)]
+            user = list(dict_of_macs.values())[
+                list(dict_of_macs.keys()).index(mac)]
             if rss != -1 and rss > TRILATERATION['rss_threshold']:
                 estimated_distance = log(rss)
                 r[ap] = estimated_distance
@@ -188,8 +212,8 @@ def run(mode, data=None):
 
             # Correct angle deviation
             localization = rotate(localization, GEO['deviation'])
-            user = list(TRILATERATION['macs'].keys())[
-                list(TRILATERATION['macs'].values()).index(mac)]
+            user = list(dict_of_macs.values())[
+                list(dict_of_macs.keys()).index(mac)]
             print('Relative location:', localization)
 
             # Draw
@@ -205,9 +229,10 @@ def run(mode, data=None):
                 closest_polygon, closest_room = get_closest_polygon(lng, lat)
                 point = Point(lng, lat)
                 p1, _ = nearest_points(closest_polygon, point)
+                d = point.distance(p1)
                 lng, lat = p1.x, p1.y
                 room = closest_room
-                print("....point was moved to", room)
+                print('...point was moved %fm' % d)
 
             # Write to file if uncertainty is not too high
             if uncertainty < TRILATERATION['max_uncertainty']:
@@ -256,6 +281,15 @@ def main():
     # Mode 3: Replay historical data and parse observations to json
     data = get_hist_data()
     print('Data retrieved.')
+    global usernames
+    for r in data:
+        if r['payload']['mac'] not in dict_of_macs:
+            if usernames:
+                random.shuffle(usernames)
+                username = usernames.pop()
+                dict_of_macs[r['payload']['mac']] = username
+            else:
+                username = ''.join(random.choices(string.ascii_uppercase, k=5))
     window_end = convert_date_to_secs(TRILATERATION['end'])
     for _ in range(window_start, window_end, TRILATERATION['window_size']):
         run('replay', data)

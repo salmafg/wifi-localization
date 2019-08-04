@@ -1,21 +1,21 @@
 TRILATERATION = {
 ***REMOVED***
     'macs': {
-        'samsung': '***REMOVED***',
-        ***REMOVED***
-        ***REMOVED***
-        'nam': 'd8:68:c3:7d:2e:c7',
-        ***REMOVED***,
-        'tanmaya': '6c:c7:ec:9a:3c:06',
-        'pavlos': '74:23:44:96:c5:42',
-        'nexus': '8c:3a:e3:96:e2:6e'
+        '***REMOVED***': 'samsung',
+        ***REMOVED***: 'oneplus6',
+        ***REMOVED***: 'nikos',
+        'd8:68:c3:7d:2e:c7': 'nam',
+        ***REMOVED***: 'george',
+        '6c:c7:ec:9a:3c:06': 'tanmaya',
+        '74:23:44:96:c5:42': 'pavlos',
+        '8c:3a:e3:96:e2:6e': 'nexus'
     },
-    'start': '29 Jul 2019 16:05',
-    'end': '29 Jul 2019 16:13',
+    'start': '30 Jul 2019 16:05',
+    'end': '30 Jul 2019 16:13',
     'rss_threshold': -60,
     'window_size': 4,
     'min_uncertainty': 1,
-    'max_uncertainty': 10,
+    'max_uncertainty': 15,
     'default_uncertainty': 2,
 
     # experiment 1
