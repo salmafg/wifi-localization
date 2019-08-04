@@ -287,9 +287,9 @@ def main():
             if usernames:
                 random.shuffle(usernames)
                 username = usernames.pop()
-                dict_of_macs[r['payload']['mac']] = username
             else:
-                username = ''.join(random.choices(string.ascii_uppercase, k=5))
+                username = 'user'+''.join(random.choices(string.digits, k=3))
+            dict_of_macs[r['payload']['mac']] = username
     window_end = convert_date_to_secs(TRILATERATION['end'])
     for _ in range(window_start, window_end, TRILATERATION['window_size']):
         run('replay', data)
