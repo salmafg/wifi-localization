@@ -129,8 +129,11 @@ def run(mode, data=None):
         data = get_live_data()
         for r in data:
             if r['payload']['mac'] not in dict_of_macs:
-                random.shuffle(usernames)
-                username = usernames.pop()
+                if usernames:
+                    random.shuffle(usernames)
+                    username = usernames.pop()
+                else:
+                    username = 'user'+''.join(random.choices(string.digits, k=3))
                 dict_of_macs[r['payload']['mac']] = username
         for mac, _ in dict_of_macs.items():
             dict_of_rss = {}
