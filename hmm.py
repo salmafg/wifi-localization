@@ -1,14 +1,15 @@
 import warnings
-from operator import itemgetter
 
 import matplotlib.pyplot as plt
 import numpy as np
-from hmmlearn import hmm
+from hmmlearn import hmm as hmmlearn
+from seqlearn import hmm as seqlearn
 
 from map import map
 from utils import flatten
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 
 states = [
     '00.11.065', '00.11.062', '00.11.059', '00.11.056', '00.11.055',
@@ -29,7 +30,33 @@ def tidy_data(X):
 
 
 def fit(obs):
+    """
+    Unsupervised HMM
+    """
+    X, len_X = tidy_data(obs)
+    X = np.atleast_2d(X).T
+    hmm = hmmlearn.MultinomialHMM(n_components=len(states), algorithm='map')
+    hmm.fit(X, len_X)
+    return hmm
 
+
+def train(obs):
+    """
+    Supervised HMM
+    """
+    X, len_X = tidy_data(obs)
+    X = np.atleast_2d(X).T
+    y = X
+    hmm = seqlearn.MultinomialHMM(decode="bestfirst")
+    hmm.fit(X, y, len_X)
+    print(hmm.predict(X))
+    return hmm
+
+
+def create():
+    """
+    Generic HMM
+    """
     start_prob = np.full(len(states), 1/len(states))
     trans_prob = np.array([
         [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],
@@ -55,17 +82,14 @@ def fit(obs):
         [0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.4]  # corr
     ])
 
-    X, len_X = tidy_data(obs)
-    X = np.atleast_2d(X).T
-
-    model = hmm.MultinomialHMM(n_components=len(states))
-    model.startprob_ = start_prob
-    model.transmat_ = trans_prob
-    model.emissionprob_ = emission_prob
-    return model
+    hmm = hmmlearn.MultinomialHMM(n_components=len(states), algorithm='map')
+    hmm.startprob_ = start_prob
+    hmm.transmat_ = trans_prob
+    hmm.emissionprob_ = emission_prob
+    return hmm
 
 
-def predict_all(model, obs, alg):
+def predict_all(hmm, obs, alg):
     """
     Takes a dictionary of observations and returns a sequence of predictions
     """
@@ -75,7 +99,7 @@ def predict_all(model, obs, alg):
     obs_labels = [states[i] for i in X]
     # print('Obs: ', obs_labels)
 
-    _, seq = model.decode(np.atleast_2d(X).T, len_X, algorithm=alg)
+    _, seq = hmm.decode(np.atleast_2d(X).T, len_X, algorithm=alg)
     # print('seq:', seq)
 
     pred_labels = [states[i] for i in seq]

@@ -4,5 +4,6 @@ hmmlearn
 matplotlib
 numpy
 pyrebase
-shapely
 sklearn
+shapely
+seqlearn
