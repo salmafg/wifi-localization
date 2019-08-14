@@ -211,15 +211,18 @@ def run(mode, data=None, model=None):
                 loc = nls(estimated_localization, p, r)
                 d_1 = distance(loc, rel_hist[user][len(rel_hist[user])-1])
                 if d_1 <= TRILATERATION['default_uncertainty']:
-                    uncertainty = min(r.values()) + d_1
+                    # uncertainty = min(r.values()) + d_1
+                    uncertainty = max(min(r.values()), d_1)
                 else:
                     try:
                         d_2 = distance(
                             loc, rel_hist[user][len(rel_hist[user])-2])
                         if d_2 <= TRILATERATION['default_uncertainty']:
-                            uncertainty = min(r.values()) + d_2
+                            # uncertainty = min(r.values()) + d_2
+                            uncertainty = max(min(r.values()), d_1)
                         else:
-                            uncertainty = min(r.values()) + d_1
+                            # uncertainty = min(r.values()) + d_1
+                            uncertainty = max(min(r.values()), d_1)
                     except:
                         pass
             except:
@@ -267,9 +270,13 @@ def run(mode, data=None, model=None):
                 temp = np.atleast_2d(temp)
                 pred, prob = hmm.predict_room(model, temp)
                 print('>> model prediction in %s with probability %.1f' %
-                      (pred, prob))
-                if prob >= ML['prob_threshold']:
-                    lat, lng = get_room_physical_location(pred)
+                      (STATES[pred], prob))
+                if prob >= ML['prob_threshold'] and room != pred:
+                    point = Point(lng, lat)
+                    pred_polygon = Polygon(MAP[pred]['geometry']['coordinates'])
+                    p1, _ = nearest_points(pred_polygon, point)
+                    d = point.distance(p1)
+                    lng, lat = p1.x, p1.y
 
             # Write to file if uncertainty is not too high
             # if uncertainty < TRILATERATION['max_uncertainty']:

@@ -93,7 +93,7 @@ def predict_room(model, sample):
     norm_sample = normalizer.transform(sample)
     pred = model.predict(norm_sample)[0]
     probs = model.predict_proba(norm_sample)[0]
-    return STATES[pred], probs[pred]
+    return pred, probs[pred]
 
 
 def testing():
