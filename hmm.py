@@ -1,63 +1,27 @@
 import warnings
+from operator import itemgetter
 
 import matplotlib.pyplot as plt
 import numpy as np
 from hmmlearn import hmm as hmmlearn
 from seqlearn import hmm as seqlearn
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import preprocessing
 
-from map import map
-from utils import flatten
+from config import TRILATERATION, STATES
+from mi import MAP
+from utils import flatten, tidy_rss
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+normalizer = None
 
 
-states = [
-    '00.11.065', '00.11.062', '00.11.059', '00.11.056', '00.11.055',
-    '00.11.054', '00.11.053', '00.11.051', 'the corridor'
-]
-
-
-def tidy_data(X):
-    data = []
-    lengths = []
-    for _, v in X.items():
-        for e in v:
-            data.append([next((index for (index, d) in enumerate(map)
-                               if d['properties']['ref'] == e))])
-        lengths.append(len(v))
-    data = np.ravel(data)
-    return data, lengths
-
-
-def fit(obs):
-    """
-    Unsupervised HMM
-    """
-    X, len_X = tidy_data(obs)
-    X = np.atleast_2d(X).T
-    hmm = hmmlearn.MultinomialHMM(n_components=len(states), algorithm='map')
-    hmm.fit(X, len_X)
-    return hmm
-
-
-def train(obs):
-    """
-    Supervised HMM
-    """
-    X, len_X = tidy_data(obs)
-    X = np.atleast_2d(X).T
-    y = X
-    hmm = seqlearn.MultinomialHMM(decode="bestfirst")
-    hmm.fit(X, y, len_X)
-    print(hmm.predict(X))
-    return hmm
-
-
-def create():
+def create(obs):
     """
     Generic HMM
     """
-    start_prob = np.full(len(states), 1/len(states))
+    start_prob = np.full(len(STATES), 1/len(STATES))
     trans_prob = np.array([
         [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],
         [0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],
@@ -76,17 +40,75 @@ def create():
         [0.01, 0.1, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],  # 59
         [0.01, 0.01, 0.01, 0.6, 0.1, 0.1, 0.01, 0.01, 0.2],  # 56
         [0.01, 0.01, 0.01, 0.1, 0.6, 0.01, 0.1, 0.01, 0.2],  # 55
-        [0.01, 0.01, 0.01, 0.2, 0.01, 0.5, 0.1, 0.01, 0.2],  # 54
+        [0.01, 0.01, 0.01, 0.3, 0.01, 0.4, 0.1, 0.01, 0.2],  # 54
         [0.01, 0.01, 0.01, 0.01, 0.01, 0.2, 0.5, 0.1, 0.2],  # 53
         [0.01, 0.01, 0.01, 0.01, 0.01, 0.1, 0.1, 0.6, 0.2],  # 51
         [0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.075, 0.4]  # corr
     ])
 
-    hmm = hmmlearn.MultinomialHMM(n_components=len(states), algorithm='map')
+    hmm = hmmlearn.MultinomialHMM(n_components=len(
+        STATES), algorithm='map', init_params='ste')
     hmm.startprob_ = start_prob
     hmm.transmat_ = trans_prob
     hmm.emissionprob_ = emission_prob
     return hmm
+
+
+def fit(obs):
+    """
+    Unsupervised HMM
+    """
+    X, len_X = tidy_data(obs)
+    X = np.atleast_2d(X).T
+    hmm = hmmlearn.MultinomialHMM(n_components=len(STATES), algorithm='map')
+    hmm.fit(X, len_X)
+    return hmm
+
+
+def train(obs, labels):
+    """
+    Supervised HMM
+    """
+    global normalizer
+    X, len_X = tidy_rss(obs)
+    X = np.atleast_2d(X)
+    normalizer = preprocessing.Normalizer().fit(X)
+    norm_X = normalizer.transform(X)
+    print(norm_X)
+    y, len_y = tidy_data(labels)
+    print(len_X, len_y)
+    # print(y)
+    alg = 'viterbi'
+    # hmm = seqlearn.MultinomialHMM(decode=alg)
+    # hmm = DecisionTreeClassifier()
+    hmm = RandomForestClassifier(n_estimators=10, criterion='entropy')
+    hmm.fit(norm_X, y)
+    p = hmm.predict(norm_X)
+    print(hmm.score(norm_X, y))
+    plot(labels, p, len_X, alg)
+    return hmm
+
+
+def predict_room(model, sample):
+    norm_sample = normalizer.transform(sample)
+    pred = model.predict(norm_sample)[0]
+    probs = model.predict_proba(norm_sample)[0]
+    return STATES[pred], probs[pred]
+
+
+def testing():
+    X = [[1, 1], [1, 2], [2, 2], [3, 4], [4, 4], [4, 3],
+         [1, 2], [1, 2], [2, 2], [3, 2], [4, 2], [2, 3]]
+    y = [[1, 1], [1, 1], [2, 2], [3, 3], [4, 4], [4, 4],
+         [1, 1], [1, 1], [2, 2], [3, 3], [4, 4], [2, 2]]
+    len_X = len(X)*[2]
+    print(y)
+    X = np.atleast_2d(np.ravel(X)).T
+    y = np.atleast_2d(np.ravel(y)).T
+    hmm = seqlearn.MultinomialHMM(decode='bestfirst')
+    hmm.fit(X, y, len_X)
+    print(hmm.predict(X))
+    print(hmm.score(X, y, len_X))
 
 
 def predict_all(hmm, obs, alg):
@@ -94,18 +116,42 @@ def predict_all(hmm, obs, alg):
     Takes a dictionary of observations and returns a sequence of predictions
     """
     X, len_X = tidy_data(obs)
-    # print(X, len_X)
-
-    obs_labels = [states[i] for i in X]
-    # print('Obs: ', obs_labels)
-
     _, seq = hmm.decode(np.atleast_2d(X).T, len_X, algorithm=alg)
-    # print('seq:', seq)
+    plot(obs, seq, len_X, alg)
+    return seq
 
-    pred_labels = [states[i] for i in seq]
-    # print('HMM preds: ', pred_labels)
 
-    # Plot obervations and predictions
+def tidy_data(X):
+    data = []
+    lengths = []
+    for _, v in X.items():
+        for e in v:
+            data.append([next((index for (index, d) in enumerate(MAP)
+                               if d['properties']['ref'] == e))])
+        lengths.append(len(v))
+    data = np.ravel(data)
+    return data, lengths
+
+
+def tupelize_data(X):
+    data = []
+    for _, v in X.items():
+        for e in v:
+            data.append([next((index for (index, d) in enumerate(MAP)
+                               if d['properties']['ref'] == e))])
+    data = np.ravel(data)
+    tuples = list(list(i) for i in zip(data, data[1::]))
+    lengths = len(tuples)*[2]
+    # tuples = np.ravel(tuples)
+
+    return tuples, lengths
+
+
+def plot(obs, pred, len_X, alg):
+    X, len_X = tidy_data(obs)
+    obs_labels = [STATES[i] for i in X]
+    pred_labels = [STATES[i] for i in pred]
+
     for index, l in enumerate(len_X):
         start_index = 0
         if index != 0:

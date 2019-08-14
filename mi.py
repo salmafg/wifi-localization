@@ -1,4 +1,4 @@
-map = [
+MAP = [
     {
         "type": "Room",
         "properties": {

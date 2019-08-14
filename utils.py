@@ -15,7 +15,7 @@ from boto3.dynamodb.conditions import Key
 from shapely.geometry import LinearRing, Point, Polygon
 
 from config import FIREBASE, TRILATERATION
-from map import map
+from mi import MAP
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
@@ -155,7 +155,7 @@ def get_room_by_physical_location(lat, lng):
     Returns the corresponding room name for a given physical location
     """
     point = Point(lng, lat)
-    for room in map:
+    for room in MAP:
         polygon = Polygon(room['geometry']['coordinates'])
         if polygon.contains(point):
             return room['properties']['ref']
@@ -181,10 +181,10 @@ def plot_localization(history):
 
 
 def get_room_physical_location(room):
-    room = next(d for (index, d) in enumerate(map)
+    room = next(d for (index, d) in enumerate(MAP)
                 if d['properties']['ref'] == room)
     center = Polygon(room['geometry']['coordinates']).centroid
-    return center.x, center.y
+    return center.y, center.x
 
 
 def get_closest_polygon(x, y):
@@ -194,7 +194,7 @@ def get_closest_polygon(x, y):
     closest_polygon = None
     closest_room = None
 
-    for m in map:
+    for m in MAP:
         polygon = Polygon(m['geometry']['coordinates'])
         dist = polygon.distance(point)
         if dist < min_dist:
@@ -203,3 +203,30 @@ def get_closest_polygon(x, y):
             closest_room = m['properties']['ref']
 
     return closest_polygon, closest_room
+
+
+def tidy_rss(obs):
+    data = []
+    lengths = []
+    last_obs = []
+    for _, v in obs.items():
+        single_user = []
+        for e in v:
+            single_obv = []
+            for ap in TRILATERATION['aps']:
+                e = {int(key): e[key] for key in e}
+                if ap['id'] in e.keys():
+                    single_obv.append(e[ap['id']])
+                else:
+                    if last_obs:
+                        single_obv.append(last_obs[ap['id']])
+                    else:
+                        single_obv.append(-1)
+            last_obs = single_obv
+            single_user.append(single_obv)
+        data.append(single_user)
+        lengths.append(len(single_user))
+    # print('lolllllllllll', data)
+    data = flatten(data)
+    # print('hoohoooooooooooo', data)
+    return data, lengths

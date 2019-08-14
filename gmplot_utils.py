@@ -3,7 +3,7 @@ import sys
 import gmplot
 
 from config import BUILDING, GMPLOT
-from map import map
+from mi import MAP
 
 gmap = gmplot.GoogleMapPlotter(GMPLOT['lat'], GMPLOT['lng'], GMPLOT['zoom'])
 gmap.apikey = GMPLOT['apiKey']
@@ -32,7 +32,7 @@ def plot_building():
 
 def plot_corridor():
     corridor = next(d for (index, d) in enumerate(
-        map) if d['properties']['ref'] == "the corridor")['geometry']['coordinates']
+        MAP) if d['properties']['ref'] == "the corridor")['geometry']['coordinates']
     lats = [lat for (lng, lat) in corridor]
     lngs = [lng for (lng, lat) in corridor]
     gmap.polygon(lats, lngs, color='cornflowerblue')
@@ -41,7 +41,7 @@ def plot_corridor():
 
 def plot_room():
     room = next(d for (index, d) in enumerate(
-        map) if d['properties']['ref'] == "00.11.051")['geometry']['coordinates']
+        MAP) if d['properties']['ref'] == "00.11.051")['geometry']['coordinates']
     lats = [lat for (lng, lat) in room]
     lngs = [lng for (lng, lat) in room]
     gmap.polygon(lats, lngs, color='cornflowerblue')
