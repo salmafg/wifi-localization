@@ -316,8 +316,8 @@ def run(mode, data=None, model=None):
             print('Physical location:', (lat, lng))
 
 
-            # Write to file if uncertainty is not too high
-            if mode == 'live' or mode == 'live-all':
+            # Write to file if live
+            if mode != 'replay':
                 rss_data = json.dumps(rss_hist)
                 loc_data = json.dumps(sem_hist)
                 loc_f = open("locations.json", "w")
