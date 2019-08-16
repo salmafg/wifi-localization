@@ -14,7 +14,8 @@ import pyrebase
 from boto3.dynamodb.conditions import Key
 from shapely.geometry import LinearRing, Point, Polygon
 
-from config import FIREBASE, TRILATERATION
+import mqtt
+from config import FIREBASE, STATES, TRILATERATION
 from mi import MAP
 
 dynamodb = boto3.resource('dynamodb')
@@ -128,6 +129,14 @@ def get_live_rss_for_ap_and_mac_address(response, mac, ap):
     return -1
 
 
+def mqtt_get_live_rss_for_ap_and_mac_address(response, mac, ap):
+    for r in response:
+        r = json.loads(r)
+        if r['mac'] == mac and r['sensor_id'] == ap:
+            return r['rssi']
+    return -1
+
+
 def replay_hist_data(response, mac, ap, window_start):
     """
     Mimics live streaming for historical data
@@ -205,6 +214,18 @@ def get_closest_polygon(x, y):
     return closest_polygon, closest_room
 
 
+def tidy_obs_data(X):
+    data = []
+    lengths = []
+    for _, v in X.items():
+        for e in v:
+            data.append([next((index for (index, d) in enumerate(MAP)
+                               if d['properties']['ref'] == e))])
+        lengths.append(len(v))
+    data = np.ravel(data)
+    return data, lengths
+
+
 def tidy_rss(obs):
     data = []
     lengths = []
@@ -226,7 +247,24 @@ def tidy_rss(obs):
             single_user.append(single_obv)
         data.append(single_user)
         lengths.append(len(single_user))
-    # print('lolllllllllll', data)
     data = flatten(data)
-    # print('hoohoooooooooooo', data)
     return data, lengths
+
+
+def ml_plot(obs, pred, len_X, alg):
+    X, len_X = tidy_obs_data(obs)
+    obs_labels = [STATES[i] for i in X]
+    pred_labels = [STATES[i] for i in pred]
+
+    for index, l in enumerate(len_X):
+        start_index = 0
+        if index != 0:
+            start_index = index+len_X[index-1]
+        plt.plot(obs_labels[start_index:start_index+l], ".-", label="observations", ms=6,
+                 mfc="blue", alpha=0.7)
+        plt.legend(loc='best')
+        plt.plot(pred_labels[start_index:start_index+l], ".-", label="predictions", ms=6,
+                 mfc="orange", alpha=0.7)
+        plt.legend(loc='best')
+        plt.title('user=%s, alg=%s' % (list(obs.keys())[index], alg))
+        plt.show()

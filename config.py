@@ -8,7 +8,8 @@ TRILATERATION = {
         ***REMOVED***: 'george',
         '6c:c7:ec:9a:3c:06': 'tanmaya',
         '74:23:44:96:c5:42': 'pavlos',
-        '8c:3a:e3:96:e2:6e': 'nexus'
+        '8c:3a:e3:96:e2:6e': 'nexus',
+        '64:9a:be:cf:a4:34': 'june'
     },
     'start': '9 Aug 2019 16:20',
     'end': '9 Aug 2019 16:30',
@@ -410,6 +411,18 @@ STATES = [
 
 ML = {
     'prob_threshold': 0.7
+}
+
+MQTT = {
+    'endpoint': 'a2yr2xb63ny7rm-ats.iot.us-west-2.amazonaws.com',
+    'rootCA': '***REMOVED***',
+    'certificatePath': 'effing.cert.pem',
+    'privateKeyPath': '***REMOVED***',
+    'port': 8883,
+    'useWebsocket': False,
+    'mode': 'both',
+    'clientId': 'sdk-nodejs-365',
+    'topic': 'topic_2'
 }
 
 CURVE = {

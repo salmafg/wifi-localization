@@ -18,9 +18,11 @@ from boto3.dynamodb.conditions import Key
 from shapely.geometry import LinearRing, Point, Polygon
 from shapely.ops import nearest_points
 
+import classifier
 import gdop
 import hmm
 import kmeans
+import mqtt
 from config import *
 from draw import draw
 from fit_data import fit
@@ -106,19 +108,7 @@ def run(mode, data=None, model=None):
     global rss_hist
     dict_of_mac_rss = {}
 
-    if mode == 'hist':
-        for mac, user in dict_of_macs.items():
-            dict_of_rss = {}
-            for ap in TRILATERATION['aps']:
-                rss = compute_median_rss(data, mac, ap['id'])
-                if rss != -1:
-                    dict_of_rss[ap['id']] = round(rss)
-            if dict_of_rss:
-                dict_of_mac_rss[mac] = dict_of_rss
-            if len(dict_of_rss) >= 3:
-                rss_hist.setdefault(user, []).append(dict_of_rss)
-
-    elif mode == 'live':
+    if mode == 'live':
         data = get_live_data()
         for mac, user in dict_of_macs.items():
             dict_of_rss = {}
@@ -130,6 +120,20 @@ def run(mode, data=None, model=None):
                 dict_of_mac_rss[mac] = dict_of_rss
             if len(dict_of_rss) >= 3:
                 rss_hist.setdefault(user, []).append(dict_of_rss)
+
+    if mode == 'mqtt':
+        data = mqtt.get_messages()
+        for mac, user in dict_of_macs.items():
+            dict_of_rss = {}
+            for ap in TRILATERATION['aps']:
+                rss = mqtt_get_live_rss_for_ap_and_mac_address(data, mac, ap['id'])
+                if rss != -1:
+                    dict_of_rss[ap['id']] = round(rss)
+            if dict_of_rss:
+                dict_of_mac_rss[mac] = dict_of_rss
+            if len(dict_of_rss) >= 3:
+                rss_hist.setdefault(user, []).append(dict_of_rss)
+        # print(data)
 
     elif mode == 'live-all':
         data = get_live_data()
@@ -146,6 +150,30 @@ def run(mode, data=None, model=None):
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss = get_live_rss_for_ap_and_mac_address(data, mac, ap['id'])
+                if rss != -1:
+                    dict_of_rss[ap['id']] = round(rss)
+            if dict_of_rss:
+                dict_of_mac_rss[mac] = dict_of_rss
+            if len(dict_of_rss) >= 3:
+                rss_hist.setdefault(user, []).append(dict_of_rss)
+
+    elif mode == 'mqtt-all':
+        data = mqtt.get_messages()
+        for r in data:
+            r = json.loads(r)
+            if r['mac'] not in dict_of_macs:
+                if usernames:
+                    random.shuffle(usernames)
+                    username = usernames.pop()
+                else:
+                    username = 'user' + \
+                        ''.join(random.choices(string.digits, k=3))
+                dict_of_macs[r['mac']] = username
+        for mac, user in dict_of_macs.items():
+            dict_of_rss = {}
+            for ap in TRILATERATION['aps']:
+                rss = mqtt_get_live_rss_for_ap_and_mac_address(
+                    data, mac, ap['id'])
                 if rss != -1:
                     dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
@@ -219,7 +247,7 @@ def run(mode, data=None, model=None):
                             loc, rel_hist[user][len(rel_hist[user])-2])
                         if d_2 <= TRILATERATION['default_uncertainty']:
                             # uncertainty = min(r.values()) + d_2
-                            uncertainty = max(min(r.values()), d_1)
+                            uncertainty = max(min(r.values()), d_2)
                         else:
                             # uncertainty = min(r.values()) + d_1
                             uncertainty = max(min(r.values()), d_1)
@@ -227,7 +255,7 @@ def run(mode, data=None, model=None):
                         pass
             except:
                 pass
-            print('Uncertainty: %dm' % round(uncertainty))
+            print('Uncertainty: %.1fm' % round(uncertainty, 1))
 
             # Non-linear least squares
             localization = nls(estimated_localization, p, r)
@@ -268,9 +296,9 @@ def run(mode, data=None, model=None):
                 temp[mac] = [dict_of_mac_rss[mac]]
                 temp, _ = tidy_rss(temp)
                 temp = np.atleast_2d(temp)
-                pred, prob = hmm.predict_room(model, temp)
+                pred, prob = classifier.predict_room(model, temp)
                 print('>> model prediction in %s with probability %.1f' %
-                      (STATES[pred], prob))
+                      (STATES[pred], round(prob, 1)))
                 if prob >= ML['prob_threshold'] and room != pred:
                     point = Point(lng, lat)
                     pred_polygon = Polygon(MAP[pred]['geometry']['coordinates'])
@@ -278,30 +306,26 @@ def run(mode, data=None, model=None):
                     d = point.distance(p1)
                     lng, lat = p1.x, p1.y
 
-            # Write to file if uncertainty is not too high
-            # if uncertainty < TRILATERATION['max_uncertainty']:
-            #     data = json.dumps(sem_hist)
-            #     if mode == 'live':
-            #         f = open("data.json", "w")
-            #         f.write(data)
-            #         f.close()
-            #     # if model is None:
-            #     f = open("locations.json", "w")
-            #     f.write(data)
-            #     f.close()
-            #     data = json.dumps(rss_hist)
-            #     f = open("rss.json", "w")
-            #     f.write(data)
-            #     f.close()
-
             # Print observation
-            if mode != 'live' and mode != 'live-all':
+            if mode == 'replay':
                 print('>> %s was observed in %s on %s %s' %
                       (user, room, day, time))
             else:
                 print('>> %s was just observed in %s' %
                       (user, room))
             print('Physical location:', (lat, lng))
+
+
+            # Write to file if uncertainty is not too high
+            if mode == 'live' or mode == 'live-all':
+                rss_data = json.dumps(rss_hist)
+                loc_data = json.dumps(sem_hist)
+                loc_f = open("locations.json", "w")
+                rss_f = open("rss.json", "w")
+                loc_f.write(loc_data)
+                rss_f.write(rss_data)
+                loc_f.close()
+                rss_f.close()
 
             # Push data to Firebase
             data = {
@@ -320,22 +344,18 @@ def run(mode, data=None, model=None):
 
 def main():
 
-    # Mode 1: Trilateration on historical data
-    # data = get_hist_data()
-    # run('hist', data)
-
-    # Mode 2: Trilateration in real-time
+    # Mode 1: Trilateration in real-time
     # while(True):
     #     run('live-all')
 
     # Fit HMM from JSON and make predications
-    obs = json.loads(open('rss.json').read())
-    labels = json.loads(open('locations.json').read())
-    m = hmm.train(obs, labels)
+    # obs = json.loads(open('rss.json').read())
+    # labels = json.loads(open('locations.json').read())
+    # m = classifier.train(obs, labels, 'rf')
 
-    # Mode 3: Replay historical data and parse observations to json
-    data = get_hist_data()
-    print('Data retrieved.')
+    # Mode 2: Replay historical data and parse observations to json
+    # data = get_hist_data()
+    # print('Data retrieved.')
     # global usernames
     # for r in data:
     #     if r['payload']['mac'] not in dict_of_macs:
@@ -345,20 +365,20 @@ def main():
     #         else:
     #             username = 'user'+''.join(random.choices(string.digits, k=3))
     #         dict_of_macs[r['payload']['mac']] = username
-    window_end = convert_date_to_secs(TRILATERATION['end'])
-    for _ in range(window_start, window_end, TRILATERATION['window_size']):
-        run('replay', data, m)
+    # window_end = convert_date_to_secs(TRILATERATION['end'])
+    # for _ in range(window_start, window_end, TRILATERATION['window_size']):
+    #     run('replay', data, m)
     # plot_localization(sem_history)
 
     # Fit HMM from JSON and make predications
-    # obs = json.loads(open('rss.json').read())
-    # labels = json.loads(open('locations.json').read())
-    # m = hmm.train(obs, labels)
-    # model = hmm.create(obs)
-    # hmm.predict_all(model, obs, 'map')
-    # hmm.testing()
+    obs = json.loads(open('rss.json').read())
+    labels = json.loads(open('locations.json').read())
+    m = classifier.train(obs, labels, 'rf')
     # while(True):
-    #     run('live-all', model=m)
+    #     run('live', model=m)
+
+    while(True):
+        run('mqtt', model=m)
 
     # Fit curve
     # fit()
