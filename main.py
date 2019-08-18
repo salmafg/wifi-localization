@@ -45,7 +45,8 @@ rel_hist = {}
 geo_hist = {}
 sem_hist = json.loads(open('locations.json').read())
 rss_hist = json.loads(open('rss.json').read())
-hmm_preds = {}
+y_true = []
+y_pred = []
 
 
 with open('usernames.csv', 'r') as f:
@@ -126,7 +127,8 @@ def run(mode, data=None, model=None):
         for mac, user in dict_of_macs.items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
-                rss = mqtt_get_live_rss_for_ap_and_mac_address(data, mac, ap['id'])
+                rss = mqtt_get_live_rss_for_ap_and_mac_address(
+                    data, mac, ap['id'])
                 if rss != -1:
                     dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
@@ -285,11 +287,6 @@ def run(mode, data=None, model=None):
                 room = closest_room
                 print('...point was moved %fm' % d)
 
-            # Write results to history
-            rel_hist.setdefault(user, []).append(loc)
-            geo_hist.setdefault(user, []).append((lat, lng))
-            sem_hist.setdefault(user, []).append(room)
-
             # Machine learning prediction
             if model is not None:
                 temp = {}
@@ -301,7 +298,8 @@ def run(mode, data=None, model=None):
                       (STATES[pred], round(prob, 1)))
                 if prob >= ML['prob_threshold'] and room != pred:
                     point = Point(lng, lat)
-                    pred_polygon = Polygon(MAP[pred]['geometry']['coordinates'])
+                    pred_polygon = Polygon(
+                        MAP[pred]['geometry']['coordinates'])
                     p1, _ = nearest_points(pred_polygon, point)
                     d = point.distance(p1)
                     lng, lat = p1.x, p1.y
@@ -315,6 +313,12 @@ def run(mode, data=None, model=None):
                       (user, room))
             print('Physical location:', (lat, lng))
 
+            # Write results to history
+            rel_hist.setdefault(user, []).append(loc)
+            geo_hist.setdefault(user, []).append((lat, lng))
+            sem_hist.setdefault(user, []).append(room)
+            y_pred.append(pred)
+            y_true.append(STATES.index(room))
 
             # Write to file if live
             if mode != 'replay':
@@ -349,9 +353,10 @@ def main():
     #     run('live-all')
 
     # Fit HMM from JSON and make predications
-    # obs = json.loads(open('rss.json').read())
-    # labels = json.loads(open('locations.json').read())
+    obs = json.loads(open('rss.json').read())
+    labels = json.loads(open('locations.json').read())
     # m = classifier.train(obs, labels, 'rf')
+    classifier.roc(obs, labels)
 
     # Mode 2: Replay historical data and parse observations to json
     # data = get_hist_data()
@@ -368,17 +373,21 @@ def main():
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
     #     run('replay', data, m)
+    # classifier.plot_confusion_matrix(y_true, y_pred)
+    # classifier.plot_confusion_matrix(y_true, y_pred, normalize=True)
+
+    # classifier.roc(y_true, y_pred)
     # plot_localization(sem_history)
 
     # Fit HMM from JSON and make predications
-    obs = json.loads(open('rss.json').read())
-    labels = json.loads(open('locations.json').read())
-    m = classifier.train(obs, labels, 'rf')
+    # obs = json.loads(open('rss.json').read())
+    # labels = json.loads(open('locations.json').read())
+    # m = classifier.train(obs, labels, 'rf')
     # while(True):
     #     run('live', model=m)
 
-    while(True):
-        run('mqtt', model=m)
+    # while(True):
+    #     run('mqtt', model=m)
 
     # Fit curve
     # fit()
@@ -394,4 +403,5 @@ if __name__ == '__main__':
         main()
         subprocess.Popen(['notify-send', "Localization complete."])
     except KeyboardInterrupt:
-        pass
+        classifier.plot_confusion_matrix(y_true, y_pred)
+        classifier.plot_confusion_matrix(y_true, y_pred, normalize=True)

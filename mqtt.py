@@ -5,7 +5,7 @@ import time
 import AWSIoTPythonSDK
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 
-from config import MQTT
+from config import MQTT, TRILATERATION
 
 messages = []
 AllowedActions = ['both', 'publish', 'subscribe']
@@ -94,7 +94,7 @@ def get_messages():
     """
     Connect and subscribe to AWS IoT
     """
-    time.sleep(3)
+    time.sleep(TRILATERATION['window_size'])
     global messages
     data = messages
     messages = []
