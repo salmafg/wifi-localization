@@ -1,11 +1,10 @@
 import argparse
+import json
 import logging
-import time
 
-import AWSIoTPythonSDK
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 
-from config import MQTT, TRILATERATION
+from config import MQTT
 
 messages = []
 AllowedActions = ['both', 'publish', 'subscribe']
@@ -31,7 +30,7 @@ privateKeyPath = MQTT['privateKeyPath']
 port = MQTT['port']
 useWebsocket = MQTT['useWebsocket']
 clientId = MQTT['clientId']
-topic = MQTT['topic']
+topic = MQTT['publication_topic']
 
 if MQTT['mode'] not in AllowedActions:
     parser.error("Unknown --mode option %s. Must be one of %s" %
@@ -78,6 +77,7 @@ else:
 
 # AWSIoTMQTTClient connection configuration
 myAWSIoTMQTTClient.configureAutoReconnectBackoffTime(1, 32, 20)
+
 # Infinite offline Publish queueing
 myAWSIoTMQTTClient.configureOfflinePublishQueueing(-1)
 myAWSIoTMQTTClient.configureDrainingFrequency(2)  # Draining: 2 Hz
@@ -90,12 +90,10 @@ if MQTT['mode'] == 'both' or MQTT['mode'] == 'subscribe':
     myAWSIoTMQTTClient.subscribe(topic, 1, customCallback)
 
 
-def get_messages():
+def send_message(msg):
     """
-    Connect and subscribe to AWS IoT
+    Publish to topic
     """
-    time.sleep(TRILATERATION['window_size'])
-    global messages
-    data = messages
-    messages = []
-    return data
+    msg = json.dumps(msg)
+    print(msg)
+    myAWSIoTMQTTClient.publish(topic, msg, 1)

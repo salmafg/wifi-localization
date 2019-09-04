@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.cluster import KMeans
 
-from config import BUILDING, FIREBASE, GMPLOT
+from config import FIREBASE, GMPLOT
 from utils import read_from_firebase
 
 

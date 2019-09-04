@@ -1,20 +1,15 @@
 import itertools
-import json
 import math
 import statistics
-import time
 from datetime import datetime
-from operator import itemgetter
 
 import boto3
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyrebase
 from boto3.dynamodb.conditions import Key
-from shapely.geometry import LinearRing, Point, Polygon
+from shapely.geometry import Point, Polygon
 
-import mqtt
 from config import FIREBASE, STATES, TRILATERATION
 from mi import MAP
 
@@ -131,7 +126,6 @@ def get_live_rss_for_ap_and_mac_address(response, mac, ap):
 
 def mqtt_get_live_rss_for_ap_and_mac_address(response, mac, ap):
     for r in response:
-        r = json.loads(r)
         if r['mac'] == mac and r['sensor_id'] == ap:
             return r['rssi']
     return -1
@@ -219,6 +213,7 @@ def tidy_obs_data(X):
     lengths = []
     for _, v in X.items():
         for e in v:
+            # print(e, v)
             data.append([next((index for (index, d) in enumerate(MAP)
                                if d['properties']['ref'] == e))])
         lengths.append(len(v))

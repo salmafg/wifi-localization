@@ -1,7 +1,7 @@
 import turtle
-import random
-import numpy as np
 from time import sleep
+
+import numpy as np
 
 WIDTH, HEIGHT = 10, 10
 FONT = ('Arial', 8, 'normal')
@@ -18,7 +18,7 @@ def draw(el, l, p, r):
     window.clear()
     window.colormode(255)
     window.title("Trilateration")
-    scale = 20
+    scale = 30
 
     for i in p:
         myPen.color(tuple(np.random.choice(range(256), size=3)))

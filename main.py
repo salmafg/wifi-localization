@@ -1,55 +1,43 @@
 import csv
-import json
-import math
 import random
 import string
 import subprocess
-import time
-from datetime import datetime, timedelta
-from heapq import nlargest
 
-import boto3
-import gmplot
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import pyrebase
-from boto3.dynamodb.conditions import Key
-from shapely.geometry import LinearRing, Point, Polygon
+from shapely.geometry import Point, Polygon
 from shapely.ops import nearest_points
 
 import classifier
 import gdop
 import hmm
 import kmeans
-import mqtt
 from config import *
 from draw import draw
 from fit_data import fit
 from kalman_filter import KalmanFilter
+from mqtt import publisher, subscriber
 from nls import nls
 from path_loss import log
-from trilateration import *
+from trilateration import trilaterate
 from utils import *
-
-dynamodb = boto3.resource('dynamodb')
-tableIoT = dynamodb.Table('db_demo')
 
 firebase = pyrebase.initialize_app(FIREBASE)
 db = firebase.database()
-firebase_table = FIREBASE['table']
 
 dict_of_macs = TRILATERATION['macs']
 window_start = convert_date_to_secs(TRILATERATION['start'])
 rel_hist = {}
-geo_hist = {}
-sem_hist = json.loads(open('locations.json').read())
-rss_hist = json.loads(open('rss.json').read())
+# try:
+#     sem_hist = json.loads(open('data/locations.json').read())
+# except:
+#     sem_hist = {}
+last_rss = [-60]*len(TRILATERATION['aps'])
 y_true = []
 y_pred = []
 
 
-with open('usernames.csv', 'r') as f:
+with open('data/usernames.csv', 'r') as f:
     reader = csv.reader(f)
     usernames = flatten(list(reader))
 
@@ -100,14 +88,14 @@ def run_kalman_filter_rss():
     plt.show()
 
 
-def run(mode, data=None, model=None):
+def run(mode, data=None, model=None, record=False, broadcast=False, polygons=True, project=True):
     '''
-    Runs localization for multiple mac devices 
+    Runs localization for multiple mac devices
     '''
     global usernames
     global window_start
-    global rss_hist
     dict_of_mac_rss = {}
+    timestamp = datetime.now().strftime('%d %b %H:%M:%S')
 
     if mode == 'live':
         data = get_live_data()
@@ -115,27 +103,20 @@ def run(mode, data=None, model=None):
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss = get_live_rss_for_ap_and_mac_address(data, mac, ap['id'])
-                if rss != -1:
-                    dict_of_rss[ap['id']] = round(rss)
+                dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
                 dict_of_mac_rss[mac] = dict_of_rss
-            if len(dict_of_rss) >= 3:
-                rss_hist.setdefault(user, []).append(dict_of_rss)
 
-    if mode == 'mqtt':
-        data = mqtt.get_messages()
+    elif mode == 'mqtt':
+        data = subscriber.get_messages()
         for mac, user in dict_of_macs.items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss = mqtt_get_live_rss_for_ap_and_mac_address(
                     data, mac, ap['id'])
-                if rss != -1:
-                    dict_of_rss[ap['id']] = round(rss)
+                dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
                 dict_of_mac_rss[mac] = dict_of_rss
-            if len(dict_of_rss) >= 3:
-                rss_hist.setdefault(user, []).append(dict_of_rss)
-        # print(data)
 
     elif mode == 'live-all':
         data = get_live_data()
@@ -152,17 +133,13 @@ def run(mode, data=None, model=None):
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss = get_live_rss_for_ap_and_mac_address(data, mac, ap['id'])
-                if rss != -1:
-                    dict_of_rss[ap['id']] = round(rss)
+                dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
                 dict_of_mac_rss[mac] = dict_of_rss
-            if len(dict_of_rss) >= 3:
-                rss_hist.setdefault(user, []).append(dict_of_rss)
 
     elif mode == 'mqtt-all':
-        data = mqtt.get_messages()
+        data = subscriber.get_messages()
         for r in data:
-            r = json.loads(r)
             if r['mac'] not in dict_of_macs:
                 if usernames:
                     random.shuffle(usernames)
@@ -176,31 +153,24 @@ def run(mode, data=None, model=None):
             for ap in TRILATERATION['aps']:
                 rss = mqtt_get_live_rss_for_ap_and_mac_address(
                     data, mac, ap['id'])
-                if rss != -1:
-                    dict_of_rss[ap['id']] = round(rss)
+                dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
                 dict_of_mac_rss[mac] = dict_of_rss
-            if len(dict_of_rss) >= 3:
-                rss_hist.setdefault(user, []).append(dict_of_rss)
 
     elif mode == 'replay':
-        day = datetime.fromtimestamp(window_start).strftime('%A')
-        time = datetime.fromtimestamp(
-            window_start).strftime('%H:%M:%S')
+        timestamp = datetime.fromtimestamp(
+            window_start).strftime('%d %b %H:%M:%S')
         for mac, user in dict_of_macs.items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
                 rss, data = replay_hist_data(data, mac, ap['id'], window_start)
-                if rss != -1 and rss > TRILATERATION['rss_threshold']:
-                    dict_of_rss[ap['id']] = round(rss)
+                dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
                 dict_of_mac_rss[mac] = dict_of_rss
-            if len(dict_of_rss) >= 3:
-                rss_hist.setdefault(user, []).append(dict_of_rss)
         window_start += TRILATERATION['window_size']
 
     else:
-        raise ValueError('error: invalid run mode')
+        raise ValueError('invalid run mode `%s` ' % mode)
 
     for mac, dict_of_rss in dict_of_mac_rss.items():
         r = {}
@@ -278,7 +248,7 @@ def run(mode, data=None, model=None):
 
             # Move invalid point inside building to a valid location
             room = get_room_by_physical_location(lat, lng)
-            if room is None:
+            if polygons and room is None:
                 closest_polygon, closest_room = get_closest_polygon(lng, lat)
                 point = Point(lng, lat)
                 p1, _ = nearest_points(closest_polygon, point)
@@ -289,13 +259,16 @@ def run(mode, data=None, model=None):
 
             # Machine learning prediction
             if model is not None:
-                temp = {}
-                temp[mac] = [dict_of_mac_rss[mac]]
-                temp, _ = tidy_rss(temp)
+                temp = list(dict_of_rss.values())
+                # for i, _ in enumerate(temp):
+                #     if temp[i] == -1:
+                #         temp[i] = last_rss[i]
+                #     else:
+                #         last_rss[i] = temp[i]
                 temp = np.atleast_2d(temp)
                 pred, prob = classifier.predict_room(model, temp)
-                print('>> model prediction in %s with probability %.1f' %
-                      (STATES[pred], round(prob, 1)))
+                print('>> model prediction in %s with probability %f' %
+                      (STATES[pred], prob))
                 if prob >= ML['prob_threshold'] and room != pred:
                     point = Point(lng, lat)
                     pred_polygon = Polygon(
@@ -303,11 +276,13 @@ def run(mode, data=None, model=None):
                     p1, _ = nearest_points(pred_polygon, point)
                     d = point.distance(p1)
                     lng, lat = p1.x, p1.y
+                y_pred.append(pred)
+                y_true.append(STATES.index(room))
 
             # Print observation
             if mode == 'replay':
-                print('>> %s was observed in %s on %s %s' %
-                      (user, room, day, time))
+                print('>> %s was observed in %s on %s' %
+                      (user, room, timestamp))
             else:
                 print('>> %s was just observed in %s' %
                       (user, room))
@@ -315,48 +290,62 @@ def run(mode, data=None, model=None):
 
             # Write results to history
             rel_hist.setdefault(user, []).append(loc)
-            geo_hist.setdefault(user, []).append((lat, lng))
-            sem_hist.setdefault(user, []).append(room)
-            y_pred.append(pred)
-            y_true.append(STATES.index(room))
 
-            # Write to file if live
-            if mode != 'replay':
-                rss_data = json.dumps(rss_hist)
-                loc_data = json.dumps(sem_hist)
-                loc_f = open("locations.json", "w")
-                rss_f = open("rss.json", "w")
-                loc_f.write(loc_data)
-                rss_f.write(rss_data)
-                loc_f.close()
-                rss_f.close()
+            # Write to file
+            if record:
+                row = list(dict_of_rss.values())
+                for i, _ in enumerate(row):
+                    if row[i] == -1:
+                        row[i] = last_rss[i]
+                    else:
+                        last_rss[i] = row[i]
+                row.insert(0, room)
+                with open(ML['data'], 'a') as csv_file:
+                    writer = csv.writer(csv_file)
+                    writer.writerow(row)
+                csv_file.close()
 
             # Push data to Firebase
-            data = {
-                'user': user,
-                'mac': mac,
-                'lat': lat,
-                'lng': lng,
-                'radius': str(uncertainty),
-                'timestamp': str(datetime.now())
-            }
-            db.child(firebase_table).push(data)
+            if project:
+                data = {
+                    'mac': mac,
+                    'user': user,
+                    'lat': lat,
+                    'lng': lng,
+                    'radius': str(round(uncertainty, 2)),
+                    'timestamp': timestamp
+                }
+                # db.child(FIREBASE['table']).child(mac).set(data)
+                db.child(FIREBASE['table']).push(data)
 
-        elif localization != None:
+            if broadcast:
+                msg = {
+                    'mac': mac,
+                    'latitude': lat,
+                    'longitude': lng,
+                    'timestamp': timestamp,
+                    'floor': 0,
+                    'radius': round(uncertainty, 2)
+                }
+                publisher.send_message(msg)
+
+        elif localization is not None:
             print('info: trilateration not possible, using last value', localization)
+
+        for k, v in dict_of_rss.items():
+            if v != -1:
+                last_rss[k] = v
 
 
 def main():
 
-    # Mode 1: Trilateration in real-time
-    # while(True):
-    #     run('live-all')
+    # Train classifier and make predications
+    m = classifier.train('knn')
 
-    # Fit HMM from JSON and make predications
-    obs = json.loads(open('rss.json').read())
-    labels = json.loads(open('locations.json').read())
-    # m = classifier.train(obs, labels, 'rf')
-    classifier.roc(obs, labels)
+    # Mode 1: Trilateration in real-time
+    while(True):
+        run(mode='live-all', model=m, record=False,
+            broadcast=True, polygons=True, project=True)
 
     # Mode 2: Replay historical data and parse observations to json
     # data = get_hist_data()
@@ -372,22 +361,8 @@ def main():
     #         dict_of_macs[r['payload']['mac']] = username
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data, m)
-    # classifier.plot_confusion_matrix(y_true, y_pred)
-    # classifier.plot_confusion_matrix(y_true, y_pred, normalize=True)
-
-    # classifier.roc(y_true, y_pred)
-    # plot_localization(sem_history)
-
-    # Fit HMM from JSON and make predications
-    # obs = json.loads(open('rss.json').read())
-    # labels = json.loads(open('locations.json').read())
-    # m = classifier.train(obs, labels, 'rf')
-    # while(True):
-    #     run('live', model=m)
-
-    # while(True):
-    #     run('mqtt', model=m)
+    #     run('replay', data, model=m, project=False, broadcast=False)
+    # plot_localization(sem_hist)
 
     # Fit curve
     # fit()
@@ -402,6 +377,10 @@ if __name__ == '__main__':
     try:
         main()
         subprocess.Popen(['notify-send', "Localization complete."])
+        if y_true:
+            classifier.plot_confusion_matrix([5]*len(y_pred), y_pred)
     except KeyboardInterrupt:
-        classifier.plot_confusion_matrix(y_true, y_pred)
-        classifier.plot_confusion_matrix(y_true, y_pred, normalize=True)
+        if y_true:
+            classifier.plot_confusion_matrix(y_true, y_pred)
+        else:
+            pass

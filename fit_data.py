@@ -1,6 +1,5 @@
 import statistics
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
@@ -55,19 +54,23 @@ def fit():
                 single_data.append(filtered_y[t.index(p)])
         data.append(single_data)
         medians.append(statistics.median(single_data))
-        avgs.append(statistics.mean(single_data))
+        avgs.append(round(statistics.mean(single_data), 1))
 
         # Plot raw data histograms
         # plt.hist(single_data, bins=20, histtype='bar', label=i)
         i += 1
 
     plt.hist(data[:6], bins=30, label=range(0, 6))
+    plt.xlabel('RSS')
+    plt.ylabel('Frequency')
     plt.legend(loc='upper right')
+    plt.title('RSS frequencies measured in the first 6 meters')
     plt.show()
 
     # Plot collective RSS histogram
     plt.hist(y, bins=30)
     plt.xlabel('RSS')
+    plt.ylabel('Frequency')
     plt.show()
 
     # Plot averaged data
@@ -78,6 +81,7 @@ def fit():
 
     # Plot curve
     avgs.sort()
+    print(avgs)
     plt.plot(avgs, func(avgs, *popt), 'g--',
              label='fit: RSS=%5.3f, gamma=%5.3f' % tuple(popt))
     plt.xlabel('RSS')

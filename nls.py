@@ -1,6 +1,3 @@
-import math
-
-import scipy
 from scipy.optimize import least_squares
 
 from utils import distance
@@ -20,4 +17,4 @@ def residuals(guess, p, r):
 
 def nls(guess, p, r):
     ls = least_squares(residuals, guess, args=(p, r))
-    return(ls.x)
+    return ls.x

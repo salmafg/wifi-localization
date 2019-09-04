@@ -2,19 +2,22 @@ TRILATERATION = {
 ***REMOVED***
     'macs': {
         '***REMOVED***': 'samsung',
-        ***REMOVED***: 'oneplus6',
-        ***REMOVED***: 'nikos',
-        'd8:68:c3:7d:2e:c7': 'nam',
-        ***REMOVED***: 'george',
-        '6c:c7:ec:9a:3c:06': 'tanmaya',
-        '74:23:44:96:c5:42': 'pavlos',
-        '8c:3a:e3:96:e2:6e': 'nexus',
-        '64:9a:be:cf:a4:34': 'june'
+        'e8:93:09:1d:b6:08': 'tiny phone',
+        # ***REMOVED***: 'oneplus6',
+        # ***REMOVED***: 'nikos',
+        ***REMOVED***
+        # ***REMOVED***: 'george',
+        ***REMOVED***
+        ***REMOVED***
+        # '8c:3a:e3:96:e2:6e': 'nexus',
+        # '64:9a:be:cf:a4:34': 'june',
+        # 'a0:c9:a0:c6:e1:10': 'mustafa',
+        # '48:88:ca:9a:05:cf': 'lenovo'
     },
-    'start': '9 Aug 2019 16:20',
-    'end': '9 Aug 2019 16:30',
-    'rss_threshold': -100,
-    'window_size': 5,
+    'start': '23 Aug 2019 17:20',
+    'end': '23 Aug 2019 18:00',
+    'rss_threshold': -100, #better to set to -100 for ml and -70 for tri
+    'window_size': 6,
     'min_uncertainty': 1,
     'max_uncertainty': 200,
     'default_uncertainty': 2,
@@ -410,19 +413,21 @@ STATES = [
 ]
 
 ML = {
-    'prob_threshold': 0.7
+    'prob_threshold': 2.0,
+    'data': 'data/samsung.csv'
 }
 
 MQTT = {
     'endpoint': 'a2yr2xb63ny7rm-ats.iot.us-west-2.amazonaws.com',
-    'rootCA': '***REMOVED***',
-    'certificatePath': 'effing.cert.pem',
-    'privateKeyPath': '***REMOVED***',
+    'rootCA': './certs/***REMOVED***',
+    'certificatePath': './certs/effing.cert.pem',
+    'privateKeyPath': './certs/***REMOVED***',
     'port': 8883,
     'useWebsocket': False,
     'mode': 'both',
     'clientId': 'sdk-nodejs-365',
-    'topic': 'topic_2'
+    'subscription_topic': 'topic_2',
+    'publication_topic': 'sdk/test/Python'
 }
 
 CURVE = {

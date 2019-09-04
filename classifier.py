@@ -1,66 +1,99 @@
+import csv
 from itertools import cycle
 
 import matplotlib.pyplot as plt
 import numpy as np
+from imblearn.combine import SMOTEENN, SMOTETomek
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import AllKNN
 from scipy import interp
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import auc, confusion_matrix, roc_auc_score, roc_curve
+from sklearn.metrics import auc, confusion_matrix, roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.multiclass import OneVsRestClassifier
+from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import Normalizer, label_binarize
-from sklearn.svm import SVC, LinearSVC
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import Normalizer, StandardScaler, label_binarize
+from sklearn.svm import SVC
 from sklearn.utils import class_weight
 from sklearn.utils.multiclass import unique_labels
 
-from config import STATES, TRILATERATION
-from mi import MAP
-from utils import flatten, ml_plot, tidy_obs_data, tidy_rss
+from config import ML, STATES
 
-normalizer = None
+NORMALIZER = None
+SCALER = None
 
 
-def train(obs, labels, model_type):
+def train(model_type):
     """
     Supervised HMM
     """
-    global normalizer
-    X, len_X = tidy_rss(obs)
-    X = np.atleast_2d(X)
-    normalizer = Normalizer().fit(X)
-    norm_X = normalizer.transform(X)
-    # print(norm_X)
-    y, _ = tidy_obs_data(labels)
-    # print(np.array(STATES)[y])
+    global NORMALIZER, SCALER
+    X, y = read_csv()
+    if model_type == 'svm':
+        SCALER = StandardScaler().fit(X)
+        X = SCALER.transform(X)
+    else:
+        NORMALIZER = Normalizer().fit(X)
+        X = NORMALIZER.transform(X)
+    
+    # print(X)
+    
+    # Plot class weights
     counts = []
     for i in np.unique(y):
         counts.append(list(y).count(i))
+    print(counts)
     plt.bar(STATES, counts, width=0.35)
-    plt.show()
-    # print(len_X, len_y)
-    cw = list(class_weight.compute_class_weight('balanced', np.unique(y), y))
+    # plt.show()
+
+    # Compute class weights
+    # cw = list(class_weight.compute_class_weight('balanced', np.unique(y_train), y_train))
+    # cw = dict(enumerate(cw))
+    # over_sample = SMOTE('minority')
+    # X, y = over_sample.fit_sample(X, y)
+    # under_sample = AllKNN('majority')
+    # X, y = under_sample.fit_sample(X, y)
+    # comb_sample = SMOTEENN(random_state=0)
+    # X_sm, y_sm = comb_sample.fit_sample(X, y)
+    # smote_tomek = SMOTETomek(random_state=0)
+    # X, y = smote_tomek.fit_resample(X, y)
+    cw = list(class_weight.compute_class_weight(
+        'balanced', np.unique(y), y))
     cw = dict(enumerate(cw))
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5)
+
+    counts = []
+    for i in np.unique(y):
+        counts.append(list(y).count(i))
+    print(counts)
+    plt.bar(STATES, counts, width=0.35)
+    # plt.show()
+
     if model_type == 'rf':
-        classifier = RandomForestClassifier(
-            n_estimators=10, class_weight=cw)
+        classifier = RandomForestClassifier(n_estimators=20)
     elif model_type == 'knn':
-        classifier = KNeighborsClassifier(n_neighbors=5, weights='distance')
+        classifier = KNeighborsClassifier(n_neighbors=3, weights='distance')
     elif model_type == 'svm':
-        classifier = LinearSVC(class_weight=cw)
-    classifier.fit(norm_X, y)
-    p = classifier.predict(norm_X)
-    print(classifier.score(norm_X, y))
-    ml_plot(labels, p, len_X, model_type)
+        classifier = SVC(gamma='auto', kernel='poly', probability=True)
+    elif model_type == 'nb':
+        classifier = GaussianNB()
+    classifier.fit(X_train, y_train)
+    print('Score:', classifier.score(X_test, y_test))
+    plot_confusion_matrix(y_test, classifier.predict(X_test))
     return classifier
 
 
 def predict_room(model, sample):
-    norm_sample = normalizer.transform(sample)
-    pred = model.predict(norm_sample)[0]
-    # pred = np.where(model.predict_proba(norm_sample)[0] ==
-    #     max(model.predict_proba(norm_sample)[0]))[0][0]
-    probs = model.predict_proba(norm_sample)[0]
+    if isinstance(model, SVC):
+        sample = SCALER.transform(sample)
+    else:
+        sample = NORMALIZER.transform(sample)
+    pred = model.predict(sample)[0]
+    # pred = np.where(model.predict_proba(sample)[0] ==
+    #     max(model.predict_proba(sample)[0]))[0][0]
+    probs = model.predict_proba(sample)[0]
     # probs = model._predict_proba_lr(norm_sample)[0]
     print(probs)
     return pred, probs[pred]
@@ -107,38 +140,59 @@ def plot_confusion_matrix(y_true, y_pred, title=None, normalize=False, cmap=plt.
     plt.show()
 
 
-def roc(obs, labels):
-    global normalizer
-    X, _ = tidy_rss(obs)
-    X = np.atleast_2d(X)
-    normalizer = Normalizer().fit(X)
-    X = normalizer.transform(X)
-    # print(norm_X)
-    y, _ = tidy_obs_data(labels)
+def read_csv():
+    X = []
+    y = []
+    with open(ML['data'], 'r') as csvFile:
+        reader = csv.reader(csvFile)
+        for row in reader:
+            X.append(list(map(int, row[1: len(row)])))
+            y.append(STATES.index(row[0]))
+    csvFile.close()
+    return np.atleast_2d(X), y
+
+
+def roc():
+    global NORMALIZER, SCALER
+    X, y = read_csv()
+    NORMALIZER = Normalizer().fit(X)
+    X = NORMALIZER.transform(X)
+
+    smote_tomek = SMOTETomek(random_state=0)
+    X, y = smote_tomek.fit_resample(X, y)
+    cw = list(class_weight.compute_class_weight('balanced', np.unique(y), y))
+    cw = dict(enumerate(cw))
 
     y = label_binarize(y, classes=range(0, len(STATES)))
     n_classes = y.shape[1]
 
     # shuffle and split training and test sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5)
+    print(y_test.shape)
     classifier = OneVsRestClassifier(
-        SVC(kernel='linear', probability=True))
+        SVC(gamma='auto', kernel='poly', probability=True))
     y_score = classifier.fit(X_train, y_train).decision_function(X_test)
+    # y_pred = np.argmax(y_score, axis=1)
+    # y_true = [np.where(r==1)[0][0] for r in y_test]
+    # plot_confusion_matrix(y_true, y_pred)
 
     # Compute ROC curve and ROC area for each class
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
     for i in range(n_classes):
-        fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
+        fpr[i], tpr[i], threshold = roc_curve(y_test[:, i], y_score[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
+        j_scores = tpr[i]-fpr[i]
+        j_ordered = sorted(zip(j_scores, threshold))
+        print('Optimal threshold for %s is %f' % (STATES[i], j_ordered[-1][1]))
 
     # Compute micro-average ROC curve and ROC area
-    fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
+    fpr["micro"], tpr["micro"], _ = roc_curve(
+        y_test.ravel(), y_score.ravel())
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
     # Compute macro-average ROC curve and ROC area
-
     # First aggregate all false positive rates
     all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
 
@@ -181,3 +235,4 @@ def roc(obs, labels):
     plt.title('Some extension of Receiver operating characteristic to multi-class')
     plt.legend(loc="lower right")
     plt.show()
+    return classifier

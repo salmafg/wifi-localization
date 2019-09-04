@@ -5,16 +5,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from hmmlearn import hmm as hmmlearn
 from seqlearn import hmm as seqlearn
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
 from sklearn import preprocessing
+from sklearn.ensemble import RandomForestClassifier
 
-from config import TRILATERATION, STATES
+from config import STATES
 from mi import MAP
-from utils import flatten, tidy_rss
+from utils import tidy_rss
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-normalizer = None
+NORMALIZER = None
 
 
 def create(obs):
@@ -69,11 +68,11 @@ def train(obs, labels):
     """
     Supervised HMM
     """
-    global normalizer
+    global NORMALIZER
     X, len_X = tidy_rss(obs)
     X = np.atleast_2d(X)
-    normalizer = preprocessing.Normalizer().fit(X)
-    norm_X = normalizer.transform(X)
+    NORMALIZER = preprocessing.Normalizer().fit(X)
+    norm_X = NORMALIZER.transform(X)
     print(norm_X)
     y, len_y = tidy_data(labels)
     print(len_X, len_y)
@@ -90,7 +89,7 @@ def train(obs, labels):
 
 
 def predict_room(model, sample):
-    norm_sample = normalizer.transform(sample)
+    norm_sample = NORMALIZER.transform(sample)
     pred = model.predict(norm_sample)[0]
     probs = model.predict_proba(norm_sample)[0]
     return pred, probs[pred]
