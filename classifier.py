@@ -9,7 +9,7 @@ from imblearn.under_sampling import AllKNN
 from scipy import interp
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import auc, confusion_matrix, roc_curve
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
@@ -36,9 +36,9 @@ def train(model_type):
     else:
         NORMALIZER = Normalizer().fit(X)
         X = NORMALIZER.transform(X)
-    
+
     # print(X)
-    
+
     # Plot class weights
     counts = []
     for i in np.unique(y):
@@ -56,8 +56,8 @@ def train(model_type):
     # X, y = under_sample.fit_sample(X, y)
     # comb_sample = SMOTEENN(random_state=0)
     # X_sm, y_sm = comb_sample.fit_sample(X, y)
-    # smote_tomek = SMOTETomek(random_state=0)
-    # X, y = smote_tomek.fit_resample(X, y)
+    smote_tomek = SMOTETomek(random_state=0)
+    X, y = smote_tomek.fit_resample(X, y)
     cw = list(class_weight.compute_class_weight(
         'balanced', np.unique(y), y))
     cw = dict(enumerate(cw))
@@ -79,6 +79,8 @@ def train(model_type):
         classifier = SVC(gamma='auto', kernel='poly', probability=True)
     elif model_type == 'nb':
         classifier = GaussianNB()
+    print('CV Score:', cross_val_score(
+        classifier, X, y, scoring='recall_macro', cv=5))
     classifier.fit(X_train, y_train)
     print('Score:', classifier.score(X_test, y_test))
     plot_confusion_matrix(y_test, classifier.predict(X_test))

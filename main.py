@@ -14,7 +14,7 @@ import hmm
 import kmeans
 from config import *
 from draw import draw
-from fit_data import fit
+from fit_data import fit, fit_multiple
 from kalman_filter import KalmanFilter
 from mqtt import publisher, subscriber
 from nls import nls
@@ -315,8 +315,8 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                     'radius': str(round(uncertainty, 2)),
                     'timestamp': timestamp
                 }
-                # db.child(FIREBASE['table']).child(mac).set(data)
-                db.child(FIREBASE['table']).push(data)
+                db.child(FIREBASE['table']).child(mac).set(data)
+                # db.child(FIREBASE['table']).push(data)
 
             if broadcast:
                 msg = {
@@ -340,12 +340,12 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 def main():
 
     # Train classifier and make predications
-    m = classifier.train('knn')
+    # m = classifier.train('knn')
 
     # Mode 1: Trilateration in real-time
-    while(True):
-        run(mode='live-all', model=m, record=False,
-            broadcast=True, polygons=True, project=True)
+    # while True:
+    #     run(mode='mqtt-all', record=False, broadcast=True,
+    #         polygons=False, project=True)
 
     # Mode 2: Replay historical data and parse observations to json
     # data = get_hist_data()
@@ -366,6 +366,7 @@ def main():
 
     # Fit curve
     # fit()
+    fit_multiple()
 
     # Kalman filter
     # run_kalman_filter_rss()

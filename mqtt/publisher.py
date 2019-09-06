@@ -29,7 +29,7 @@ certificatePath = MQTT['certificatePath']
 privateKeyPath = MQTT['privateKeyPath']
 port = MQTT['port']
 useWebsocket = MQTT['useWebsocket']
-clientId = MQTT['clientId']
+clientId = MQTT['publication_clientId']
 topic = MQTT['publication_topic']
 
 if MQTT['mode'] not in AllowedActions:
@@ -76,7 +76,7 @@ else:
         rootCAPath, privateKeyPath, certificatePath)
 
 # AWSIoTMQTTClient connection configuration
-myAWSIoTMQTTClient.configureAutoReconnectBackoffTime(1, 32, 20)
+myAWSIoTMQTTClient.configureAutoReconnectBackoffTime(1, 128, 20)
 
 # Infinite offline Publish queueing
 myAWSIoTMQTTClient.configureOfflinePublishQueueing(-1)
@@ -86,8 +86,6 @@ myAWSIoTMQTTClient.configureMQTTOperationTimeout(5)  # 5 sec
 
 
 myAWSIoTMQTTClient.connect()
-if MQTT['mode'] == 'both' or MQTT['mode'] == 'subscribe':
-    myAWSIoTMQTTClient.subscribe(topic, 1, customCallback)
 
 
 def send_message(msg):

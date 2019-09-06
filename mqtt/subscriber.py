@@ -31,7 +31,7 @@ certificatePath = MQTT['certificatePath']
 privateKeyPath = MQTT['privateKeyPath']
 port = MQTT['port']
 useWebsocket = MQTT['useWebsocket']
-clientId = MQTT['clientId']
+clientId = MQTT['subscription_clientId']
 topic = MQTT['subscription_topic']
 
 if MQTT['mode'] not in AllowedActions:
@@ -88,8 +88,7 @@ myAWSIoTMQTTClient.configureMQTTOperationTimeout(5)  # 5 sec
 
 
 myAWSIoTMQTTClient.connect()
-if MQTT['mode'] == 'both' or MQTT['mode'] == 'subscribe':
-    myAWSIoTMQTTClient.subscribe(topic, 1, customCallback)
+myAWSIoTMQTTClient.subscribe(topic, 1, customCallback)
 
 
 def get_messages():

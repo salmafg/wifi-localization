@@ -6,7 +6,7 @@ TRILATERATION = {
         # ***REMOVED***: 'oneplus6',
         # ***REMOVED***: 'nikos',
         ***REMOVED***
-        # ***REMOVED***: 'george',
+        ***REMOVED***: 'george',
         ***REMOVED***
         ***REMOVED***
         # '8c:3a:e3:96:e2:6e': 'nexus',
@@ -16,7 +16,7 @@ TRILATERATION = {
     },
     'start': '23 Aug 2019 17:20',
     'end': '23 Aug 2019 18:00',
-    'rss_threshold': -100, #better to set to -100 for ml and -70 for tri
+    'rss_threshold': -100,  # better to set to -100 for ml and -70 for tri
     'window_size': 6,
     'min_uncertainty': 1,
     'max_uncertainty': 200,
@@ -220,7 +220,43 @@ TRILATERATION = {
         {
             'id': 27,
             'xy': (-0.9, 11)
-        }
+        },
+        {
+            'id': 28,
+            'xy': (-0.4, -1.4)
+        },
+        {
+            'id': 29,
+            'xy': (-5.13, -2.2)
+        },
+        {
+            'id': 30,
+            'xy': (-2.4, -0.4)
+        },
+        {
+            'id': 31                                                                                                                                                                        ,
+            'xy': (-1.824, -4.12)
+        },
+        # {
+        #     'id': 28,
+        #     'xy': (-1.824, -4.12)
+        # },
+        # {
+        #     'id': 32,
+        #     'xy': (-1.824, -4.12)
+        # },
+        # {
+        #     'id': 33,
+        #     'xy': (-1.824, -4.12)
+        # },
+        # {
+        #     'id': 36,
+        #     'xy': (-1.824, -4.12)
+        # },
+        # {
+        #     'id': 37 ,
+        #     'xy': (-1.824, -4.12)
+        # }
     ],
 
     # 1m experiment
@@ -425,9 +461,10 @@ MQTT = {
     'port': 8883,
     'useWebsocket': False,
     'mode': 'both',
-    'clientId': 'sdk-nodejs-365',
+    'subscription_clientId': 'sdk-nodejs-3400',
+    'publication_clientId': 'sdk-nodejs-341',
     'subscription_topic': 'topic_2',
-    'publication_topic': 'sdk/test/Python'
+    'publication_topic': 'trilateration-1'
 }
 
 CURVE = {
@@ -459,4 +496,22 @@ CURVE = {
     '11m_end': '27 Jun 2019 17:28',
     '12m_start': '27 Jun 2019 17:29',
     '12m_end': '27 Jun 2019 17:32'
+}
+
+CURVES = {
+    'aps': [28, 32, 33, 36, 37],
+    # samsung, tiny phone, george
+    'macs': ['***REMOVED***', 'e8:93:09:1d:b6:08', ***REMOVED***],
+    '1m_start': '6 Sep 2019 13:49',
+    '1m_end': '6 Sep 2019 13:56',
+    '3m_start': '6 Sep 2019 14:07',
+    '3m_end': '6 Sep 2019 14:14',
+    '5m_start': '6 Sep 2019 14:22',
+    '5m_end': '6 Sep 2019 14:29',
+    '7m_start': '6 Sep 2019 14:33',
+    '7m_end': '6 Sep 2019 14:40',
+    '9m_start': '6 Sep 2019 14:44',
+    '9m_end': '6 Sep 2019 14:51',
+    '11m_start': '6 Sep 2019 14:55',
+    '11m_end': '6 Sep 2019 15:02'
 }
