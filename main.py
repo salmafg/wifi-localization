@@ -14,7 +14,7 @@ import hmm
 import kmeans
 from config import *
 from draw import draw
-from fit_data import fit, fit_multiple
+from fit_data import fit, fit_all, fit_multiple
 from kalman_filter import KalmanFilter
 from mqtt import publisher, subscriber
 from nls import nls
@@ -203,7 +203,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
         if len(p3) == 3:
             args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
             estimated_localization = trilaterate(*args)
-            print('Initial trilateration estimate:', estimated_localization)
+            print('Trilateration estimate:', estimated_localization)
 
             # Compute uncertainty
             uncertainty = min(r.values())
@@ -332,9 +332,10 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
         elif localization is not None:
             print('info: trilateration not possible, using last value', localization)
 
-        for k, v in dict_of_rss.items():
-            if v != -1:
-                last_rss[k] = v
+        if model is not None:
+            for k, v in dict_of_rss.items():
+                if v != -1:
+                    last_rss[k] = v
 
 
 def main():
@@ -350,6 +351,7 @@ def main():
     # Mode 2: Replay historical data and parse observations to json
     # data = get_hist_data()
     # print('Data retrieved.')
+    # print(data)
     # global usernames
     # for r in data:
     #     if r['payload']['mac'] not in dict_of_macs:
@@ -361,12 +363,13 @@ def main():
     #         dict_of_macs[r['payload']['mac']] = username
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data, model=m, project=False, broadcast=False)
+    #     run('replay', data, project=False, broadcast=False)
     # plot_localization(sem_hist)
 
     # Fit curve
     # fit()
-    fit_multiple()
+    # fit_multiple()
+    fit_all()
 
     # Kalman filter
     # run_kalman_filter_rss()
