@@ -22,7 +22,7 @@ def plot_localization_error():
     # Location 8: room 62
     # Location 9: room 51
     # Location 10: beginnning of corridor
-    df = pd.read_csv("data/eval/trilat.csv")
+    df = pd.read_csv("data/eval/localization.csv")
     df['Error in meters'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])), axis=1)
     print(df)
@@ -78,4 +78,26 @@ def point_of_failure():
     #                 label=32-i, cumulative=True)
     # plt.xlabel('Error in meters')
     # plt.ylabel('CDF')
+    plt.show()
+
+
+def eval_uncertainty():
+    df = pd.read_csv("data/eval/uncertainty.csv")
+    df['Deviation from radius'] = df.apply(lambda row: distance(
+        (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])) - row['uncertainty'], axis=1)
+    print(df.head())
+    print('Mean deviation in meters: %.2fm' %
+          mean(df['Deviation from radius']))
+    print('Min. deviation in meters: %.2fm' % min(df['Deviation from radius']))
+    print('Max. deviation in meters: %.2fm' % max(df['Deviation from radius']))
+    sns.boxplot(x='Location', y='Deviation from radius',
+                data=df, hue='Phone', showfliers=True)
+    plt.figure()
+    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'samsung'],
+                label='samsung', cumulative=True)
+    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'george'],
+                label='george', cumulative=True)
+    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'tiny phone'],
+                label='tiny phone', cumulative=True)
+    plt.legend()
     plt.show()
