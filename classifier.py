@@ -8,7 +8,7 @@ from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import AllKNN
 from scipy import interp
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import auc, confusion_matrix, roc_curve
+from sklearn.metrics import auc, roc_curve
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.naive_bayes import GaussianNB
@@ -16,9 +16,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import Normalizer, StandardScaler, label_binarize
 from sklearn.svm import SVC
 from sklearn.utils import class_weight
-from sklearn.utils.multiclass import unique_labels
 
 from config import ML, STATES
+from utils import plot_confusion_matrix
 
 NORMALIZER = None
 SCALER = None
@@ -99,47 +99,6 @@ def predict_room(model, sample):
     # probs = model._predict_proba_lr(norm_sample)[0]
     print(probs)
     return pred, probs[pred]
-
-
-def plot_confusion_matrix(y_true, y_pred, title=None, normalize=False, cmap=plt.cm.Blues):
-    """
-    This function prints and plots the confusion matrix.
-    Normalization can be applied by setting `normalize=True`.
-    """
-    if not title:
-        if normalize:
-            title = 'Normalized confusion matrix'
-        else:
-            title = 'Confusion matrix, without normalization'
-    cm = confusion_matrix(y_true, y_pred)
-    fig, ax = plt.subplots()
-    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
-    ax.figure.colorbar(im, ax=ax)
-    classes = np.array(STATES)[unique_labels(y_true, y_pred)]
-
-    # We want to show all ticks...
-    ax.set(xticks=np.arange(cm.shape[1]),
-           yticks=np.arange(cm.shape[0]),
-           # ... and label them with the respective list entries
-           xticklabels=classes, yticklabels=classes,
-           ylabel='True label',
-           xlabel='Predicted label',
-           ylim=(len(classes)-0.5, -0.5))
-
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-             rotation_mode="anchor")
-
-    # Loop over data dimensions and create text annotations.
-    fmt = '.2f' if normalize else 'd'
-    thresh = cm.max() / 2.
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            ax.text(j, i, format(cm[i, j], fmt),
-                    ha="center", va="center",
-                    color="white" if cm[i, j] > thresh else "black")
-    fig.tight_layout()
-    plt.show()
 
 
 def read_csv():

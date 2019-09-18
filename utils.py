@@ -9,6 +9,8 @@ import numpy as np
 import pyrebase
 from boto3.dynamodb.conditions import Key
 from shapely.geometry import Point, Polygon
+from sklearn.metrics import confusion_matrix
+from sklearn.utils.multiclass import unique_labels
 
 from config import FIREBASE, STATES, TRILATERATION
 from mi import MAP
@@ -263,3 +265,53 @@ def ml_plot(obs, pred, len_X, alg):
         plt.legend(loc='best')
         plt.title('user=%s, alg=%s' % (list(obs.keys())[index], alg))
         plt.show()
+
+
+def closest_access_points():
+    p = (1.0, 7.0)
+    aps_sorted = {}
+    for ap in TRILATERATION['aps']:
+        aps_sorted[ap['id']] = distance(p, ap['xy'])
+    return sorted(aps_sorted.items(), key=lambda kv: kv[1])
+
+
+def plot_confusion_matrix(y_true, y_pred, title=None, normalize=False, cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    cm = confusion_matrix(y_true, y_pred)
+    if not title:
+        if normalize:
+            cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            title = 'Normalized confusion matrix'
+        else:
+            title = 'Confusion matrix, without normalization'
+    fig, ax = plt.subplots()
+    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+    ax.figure.colorbar(im, ax=ax)
+    classes = np.array(STATES)[unique_labels(y_true, y_pred)]
+
+    # We want to show all ticks...
+    ax.set(xticks=np.arange(cm.shape[1]),
+           yticks=np.arange(cm.shape[0]),
+           # ... and label them with the respective list entries
+           xticklabels=classes, yticklabels=classes,
+           ylabel='True label',
+           xlabel='Predicted label',
+           ylim=(len(classes)-0.5, -0.5))
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations.
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], fmt),
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black")
+    fig.tight_layout()
+    plt.show()

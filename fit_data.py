@@ -223,12 +223,12 @@ def fit_multiple():
             plt.plot(avgs, distances)
 
             # Fit curve
-            popt, _ = curve_fit(func, avgs, distances)
+            popt, _ = curve_fit(log_func, avgs, distances)
 
             # Plot curve
             avgs.sort()
             print('RSS averages for ap %s and device %s: %s' % (ap, mac, avgs))
-            plt.plot(avgs, func(avgs, *popt), 'g--',
+            plt.plot(avgs, log_func(avgs, *popt), 'g--',
                      label='fit: RSS=-%5.3f, gamma=%5.3f' % tuple(popt))
             plt.xlabel('RSS')
             plt.ylabel('Distance in meters')

@@ -1,16 +1,17 @@
 import warnings
-from operator import itemgetter
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from hmmlearn import hmm as hmmlearn
 from seqlearn import hmm as seqlearn
 from sklearn import preprocessing
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 
 from config import STATES
 from mi import MAP
-from utils import tidy_rss
+from utils import plot_confusion_matrix, tidy_rss
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 NORMALIZER = None
@@ -84,7 +85,7 @@ def train(obs, labels):
     hmm.fit(norm_X, y)
     p = hmm.predict(norm_X)
     print(hmm.score(norm_X, y))
-    plot(labels, p, len_X, alg)
+    # plot(labels, p, len_X, alg)
     return hmm
 
 
@@ -110,13 +111,13 @@ def testing():
     print(hmm.score(X, y, len_X))
 
 
-def predict_all(hmm, obs, alg):
+def predict_all(hmm, obs, truth, alg):
     """
     Takes a dictionary of observations and returns a sequence of predictions
     """
     X, len_X = tidy_data(obs)
     _, seq = hmm.decode(np.atleast_2d(X).T, len_X, algorithm=alg)
-    plot(obs, seq, len_X, alg)
+    plot(obs, seq, truth, len_X, alg)
     return seq
 
 
@@ -142,24 +143,44 @@ def tupelize_data(X):
     tuples = list(list(i) for i in zip(data, data[1::]))
     lengths = len(tuples)*[2]
     # tuples = np.ravel(tuples)
-
     return tuples, lengths
 
 
-def plot(obs, pred, len_X, alg):
+def plot(obs, preds, truth, len_X, alg):
     X, len_X = tidy_data(obs)
+    y, _ = tidy_data(truth)
     obs_labels = [STATES[i] for i in X]
-    pred_labels = [STATES[i] for i in pred]
-
-    for index, l in enumerate(len_X):
-        start_index = 0
-        if index != 0:
-            start_index = index+len_X[index-1]
-        plt.plot(obs_labels[start_index:start_index+l], ".-", label="observations", ms=6,
-                 mfc="blue", alpha=0.7)
-        plt.legend(loc='best')
-        plt.plot(pred_labels[start_index:start_index+l], ".-", label="predictions", ms=6,
-                 mfc="orange", alpha=0.7)
-        plt.legend(loc='best')
-        plt.title('user=%s, alg=%s' % (list(obs.keys())[index], alg))
-        plt.show()
+    pred_labels = [STATES[i] for i in preds]
+    truth_labels = [STATES[i] for i in y]
+    print('Prediction score:', accuracy_score(y, preds))
+    print('Observation score:', accuracy_score(y, X))
+    plot_confusion_matrix(y, preds, normalize=True)
+    plot_confusion_matrix(X, preds, normalize=True)
+    STATES.reverse()
+    truth_df = pd.DataFrame(
+        {'col1': range(0, len(truth_labels)), 'col2': truth_labels})
+    obs_df = pd.DataFrame(
+        {'col1': range(0, len(obs_labels)), 'col2': obs_labels})
+    pred_df = pd.DataFrame(
+        {'col1': range(0, len(pred_labels)), 'col2': pred_labels})
+    sentinel, = plt.plot(
+        np.repeat(truth_df.col1.values[0], len(STATES)), STATES)
+    sentinel.remove()
+    plt.step(truth_df['col1'], truth_df['col2'], '--',
+             label="truths", ms=6, color="g", alpha=0.7)
+    plt.step(obs_df['col1'], obs_df['col2'], label="observations",
+             ms=6, color="tab:blue", alpha=0.7)
+    plt.legend(loc='best')
+    plt.title(
+        'Sequence of localization data collected walking through TU campus Garching')
+    plt.figure()
+    sentinel, = plt.plot(
+        np.repeat(truth_df.col1.values[0], len(STATES)), STATES)
+    sentinel.remove()
+    plt.step(truth_df['col1'], truth_df['col2'], '--',
+             label="truths", ms=6, color="g", alpha=0.7)
+    plt.step(pred_df['col1'], pred_df['col2'],
+             label="predictions", ms=6, color="orange", alpha=0.7)
+    plt.legend(loc='best')
+    plt.title('HMM predictions, alg=%s' % alg)
+    plt.show()

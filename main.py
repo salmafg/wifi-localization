@@ -1,4 +1,5 @@
 import csv
+import json
 import random
 import string
 import subprocess
@@ -9,12 +10,13 @@ from shapely.geometry import Point, Polygon
 from shapely.ops import nearest_points
 
 import classifier
+import eval
 import gdop
 import hmm
 import kmeans
 from config import *
 from draw import draw
-from fit_data import fit, fit_all, fit_multiple
+from fit_data import *
 from kalman_filter import KalmanFilter
 from mqtt import publisher, subscriber
 from nls import nls
@@ -28,10 +30,10 @@ db = firebase.database()
 dict_of_macs = TRILATERATION['macs']
 window_start = convert_date_to_secs(TRILATERATION['start'])
 rel_hist = {}
-# try:
-#     sem_hist = json.loads(open('data/locations.json').read())
-# except:
-#     sem_hist = {}
+try:
+    sem_hist = json.loads(open('data/hist/semantic1.json').read())
+except:
+    sem_hist = {}
 last_rss = [-60]*len(TRILATERATION['aps'])
 y_true = []
 y_pred = []
@@ -88,7 +90,7 @@ def run_kalman_filter_rss():
     plt.show()
 
 
-def run(mode, data=None, model=None, record=False, broadcast=False, polygons=True, project=True):
+def run(mode, data=None, model=None, record=False, broadcast=False, polygons=True, project=True, evaluate=[]):
     '''
     Runs localization for multiple mac devices
     '''
@@ -239,6 +241,12 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 list(dict_of_macs.keys()).index(mac)]
             print('Relative location:', localization)
 
+            if evaluate:
+                with open('data/eval/trilat.csv', 'a') as csv_file:
+                    writer = csv.writer(csv_file)
+                    writer.writerow([user]+evaluate+list(localization))
+                csv_file.close()
+
             # Draw
             # draw(estimated_localization, localization, p, r)
 
@@ -290,6 +298,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 
             # Write results to history
             rel_hist.setdefault(user, []).append(loc)
+            sem_hist.setdefault(user, []).append(room)
 
             # Write to file
             if record:
@@ -337,21 +346,33 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 if v != -1:
                     last_rss[k] = v
 
+        # HMM
+        data = json.dumps(sem_hist)
+        f = open('data/hist/semantic1.json', "w")
+        f.write(data)
+        f.close()
 
 def main():
 
     # Train classifier and make predications
     # m = classifier.train('knn')
+    obs = json.loads(open('data/hist/semantic1.json').read())
+    truth = json.loads(open('data/hist/truth1.json').read())
+    m = hmm.create(obs)
+    hmm.predict_all(m, obs, truth, 'map')
 
     # Mode 1: Trilateration in real-time
     # while True:
-    #     run(mode='mqtt-all', record=False, broadcast=True,
-    #         polygons=False, project=True)
+    #     run(mode='live', record=False, polygons=True, project=True)
 
     # Mode 2: Replay historical data and parse observations to json
+    # print(closest_access_points())
+    # x = 32 - len(TRILATERATION['aps'])
+    # print('x =', x)
+    # eval.plot_localization_error()
+    # eval.point_of_failure()
     # data = get_hist_data()
     # print('Data retrieved.')
-    # print(data)
     # global usernames
     # for r in data:
     #     if r['payload']['mac'] not in dict_of_macs:
@@ -363,13 +384,16 @@ def main():
     #         dict_of_macs[r['payload']['mac']] = username
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data, project=False, broadcast=False)
+    #     run('replay', data, project=True, evaluate=[x, 1.0, 7.0])
+    # print(closest_access_points())
     # plot_localization(sem_hist)
 
     # Fit curve
     # fit()
     # fit_multiple()
-    fit_all()
+    # fit_all()
+    # heterogenity_scatter()
+    # eval.plot_localization_error()
 
     # Kalman filter
     # run_kalman_filter_rss()
@@ -382,9 +406,9 @@ if __name__ == '__main__':
         main()
         subprocess.Popen(['notify-send', "Localization complete."])
         if y_true:
-            classifier.plot_confusion_matrix([5]*len(y_pred), y_pred)
+            plot_confusion_matrix([5]*len(y_pred), y_pred)
     except KeyboardInterrupt:
         if y_true:
-            classifier.plot_confusion_matrix(y_true, y_pred)
+            plot_confusion_matrix(y_true, y_pred)
         else:
             pass
