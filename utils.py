@@ -4,6 +4,7 @@ import statistics
 from datetime import datetime
 
 import boto3
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyrebase
@@ -17,6 +18,7 @@ from mi import MAP
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
+matplotlib.rcParams.update({'font.size': 20})
 
 
 def distance(p1, p2):

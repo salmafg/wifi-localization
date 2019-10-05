@@ -1,6 +1,7 @@
 from itertools import combinations
 from statistics import mean, median
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
@@ -10,6 +11,8 @@ from sklearn.neighbors.kde import KernelDensity
 from config import CURVE, CURVES
 from kalman_filter import KalmanFilter
 from utils import convert_date_to_secs, get_rss_fluctuation
+
+matplotlib.rcParams.update({'font.size': 20})
 
 
 def log_func(rss, pl0, gamma):

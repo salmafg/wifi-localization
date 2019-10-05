@@ -241,12 +241,6 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 list(dict_of_macs.keys()).index(mac)]
             print('Relative location:', localization)
 
-            if evaluate:
-                with open('data/eval/trilat.csv', 'a') as csv_file:
-                    writer = csv.writer(csv_file)
-                    writer.writerow([user]+evaluate+list(localization))
-                csv_file.close()
-
             # Draw
             # draw(estimated_localization, localization, p, r)
 
@@ -260,10 +254,18 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 closest_polygon, closest_room = get_closest_polygon(lng, lat)
                 point = Point(lng, lat)
                 p1, _ = nearest_points(closest_polygon, point)
-                d = point.distance(p1)
+                p1_rel_x = (point.x - GEO['origin'][1]) / GEO['oneMeterLng']
+                p1_rel_y = (point.y - GEO['origin'][0]) / GEO['oneMeterLat']
+                d = (Point(p1_rel_x, p1_rel_y)).distance(Point(localization))
+                # print('New relative location:', (p1_rel_x, p1_rel_y))
                 lng, lat = p1.x, p1.y
+                # with open('data/eval/localization_1.csv', 'a') as csv_file:
+                #     writer = csv.writer(csv_file)
+                #     writer.writerow([user]+evaluate+list(localization) +
+                #     [p1_rel_x, p1_rel_y, 'the corridor', room, closest_room, uncertainty])
+                # csv_file.close()
                 room = closest_room
-                print('...point was moved %fm' % d)
+                print('...point was moved %.10fm' % round(d, 10))
 
             # Machine learning prediction
             if model is not None:
@@ -347,19 +349,20 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                     last_rss[k] = v
 
         # HMM
-        data = json.dumps(sem_hist)
-        f = open('data/hist/semantic1.json', "w")
-        f.write(data)
-        f.close()
+        # data = json.dumps(sem_hist)
+        # f = open('data/hist/semantic1.json', "w")
+        # f.write(data)
+        # f.close()
+
 
 def main():
 
     # Train classifier and make predications
     # m = classifier.train('knn')
-    obs = json.loads(open('data/hist/semantic1.json').read())
-    truth = json.loads(open('data/hist/truth1.json').read())
-    m = hmm.create(obs)
-    hmm.predict_all(m, obs, truth, 'map')
+    # obs = json.loads(open('data/hist/semantic1.json').read())
+    # truth = json.loads(open('data/hist/truth1.json').read())
+    # m = hmm.create(obs)
+    # hmm.predict_all(m, obs, truth, 'map')
 
     # Mode 1: Trilateration in real-time
     # while True:
@@ -368,9 +371,10 @@ def main():
     # Mode 2: Replay historical data and parse observations to json
     # print(closest_access_points())
     # x = 32 - len(TRILATERATION['aps'])
-    # print('x =', x)
-    # eval.plot_localization_error()
-    # eval.point_of_failure()
+    # print('x =', len(TRILATERATION['aps']))
+    eval.plot_localization_error("data/eval/localization_1.csv")
+    # eval.point_of_failure("data/eval/pof.csv")
+    # eval.eval_uncertainty()
     # data = get_hist_data()
     # print('Data retrieved.')
     # global usernames
@@ -384,7 +388,9 @@ def main():
     #         dict_of_macs[r['payload']['mac']] = username
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data, project=True, evaluate=[x, 1.0, 7.0])
+    #     run('replay', data, project=True,
+    #         polygons=True, evaluate=[10, 0.0, 1.8])
+        # run('replay', data, project=True, evaluate=[29, 1.0, 7.0])
     # print(closest_access_points())
     # plot_localization(sem_hist)
 

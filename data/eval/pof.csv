@@ -1,4 +1,4 @@
-Phone,Connected access points,true_x,true_y,obs_x,obs_y
+Phone,Disconnected access points,true_x,true_y,obs_x,obs_y
 samsung,0,1.0,7.0,1.8364749497782937,7.044229516959052
 tiny phone,0,1.0,7.0,2.7509460069934883,7.300030912189668
 george,0,1.0,7.0,5.6414675137848045,5.444460557644271
