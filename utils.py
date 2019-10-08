@@ -301,6 +301,7 @@ def plot_confusion_matrix(y_true, y_pred, title=None, normalize=False, cmap=plt.
            xticklabels=classes, yticklabels=classes,
            ylabel='True label',
            xlabel='Predicted label',
+           title=title,
            ylim=(len(classes)-0.5, -0.5))
 
     # Rotate the tick labels and set their alignment.

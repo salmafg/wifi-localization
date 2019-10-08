@@ -9,17 +9,17 @@ TRILATERATION = {
         # ***REMOVED***: 'george',
         # ***REMOVED***
         # ***REMOVED***
-        '9ad190f7c15b7032b3e63ac8a63e55d661f442977bb70bd7be2518db60fb420a': 'samsung',
-        'fca44441db4866567fcf902494b1a4ebf16c5d47ac42cbb5abb66344f4a409a0': 'nikos',
+        # '9ad190f7c15b7032b3e63ac8a63e55d661f442977bb70bd7be2518db60fb420a': 'samsung',
+        # 'fca44441db4866567fcf902494b1a4ebf16c5d47ac42cbb5abb66344f4a409a0': 'nikos',
         '07095a6340783f5222d2332b3f9f8ef77e015516c2fcb237e5900580b77bbe8a': 'tiny phone',
         # '11bb121fe1a576f52e301e337de98e9c2921d14ad9c12da7c891fe1a75806254': 'one plus 6',
         # 'c3d402262004be8e7e751e32c93d8049eb2b644f93e92fbf818eb40e5d3ebe1b': 'nam',
-        '85362b02a0d505c7a3a9aca24e9e480778082adb242ff6dfb49b6acc62375cbb': 'george'
+        # '85362b02a0d505c7a3a9aca24e9e480778082adb242ff6dfb49b6acc62375cbb': 'george'
     },
     # 'start': '16 Sep 2019 17:35',
     # 'end': '16 Sep 2019 17:45',
     'start': '4 Oct 2019 18:11:10',
-    'end': '4 Oct 2019 18:21:00',
+    'end': '4 Oct 2019 18:21:10',
     'rss_threshold': -100,
     'window_size': 6,
     'default_uncertainty': 2,
@@ -351,7 +351,7 @@ TRILATERATION = {
         },
         {
             'id': 28,
-            'xy': (-0.9, 11)
+            'xy': (-1.82, 10.6)
         },
         {
             'id': 34,

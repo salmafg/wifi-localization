@@ -31,9 +31,6 @@ def plot_localization_error(filename):
     print('Mean error in meters: %.3fm' % mean(df['Error in meters']))
     print('Min. error in meters: %.3fm' % min(df['Error in meters']))
     print('Max. error in meters: %.3fm' % max(df['Error in meters']))
-    print('Mean error in meters: %.3fm' % mean(df['Error in meters with polygons']))
-    print('Min. error in meters: %.3fm' % min(df['Error in meters with polygons']))
-    print('Max. error in meters: %.3fm' % max(df['Error in meters with polygons']))
     sns.boxplot(x='Location', y='Error in meters', data=df, showfliers=True)
     plt.figure()
     sns.kdeplot(df['Error in meters'][df['Phone'] == 'samsung'],
@@ -44,7 +41,7 @@ def plot_localization_error(filename):
                 label='tiny phone', cumulative=True)
     sns.kdeplot(df['Error in meters'][df['Phone'] == 'george'],
                 label='george', cumulative=True)
-    plt.xlim(0, 15)
+    plt.xlim(0, 18)
     plt.legend()
     plt.figure()
     plt.hist(df['Error in meters'][df['Phone'] == 'tiny phone'],
@@ -60,8 +57,10 @@ def plot_localization_error(filename):
     plt.xlim(0, 15)
     plt.legend()
     plt.show()
-    before = accuracy_score(df['true_polygon'], df['No polygons'])
-    after = accuracy_score(df['true_polygon'], df['Polygons'])
+    before = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
+                            df['No polygons'][df['No polygons'] == 'unknown'])
+    after = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
+                           df['Polygons'][df['No polygons'] == 'unknown'])
     print('Before applying polygons:', before)
     print('After applying polygons:', after)
     print('%.1f%% improvement' % (100*after-100*before))
@@ -92,17 +91,17 @@ def point_of_failure(filename):
     plt.show()
 
 
-def eval_uncertainty():
-    df = pd.read_csv("data/eval/uncertainty.csv")
+def eval_uncertainty(filename):
+    df = pd.read_csv(filename)
     df['Deviation from radius'] = df.apply(lambda row: distance(
-        (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])) - row['uncertainty'], axis=1)
-    print(df.head())
+        (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])) - row['Uncertainty'], axis=1)
+    # print(df.head())
     print('Mean deviation in meters: %.2fm' %
           mean(df['Deviation from radius']))
     print('Min. deviation in meters: %.2fm' % min(df['Deviation from radius']))
     print('Max. deviation in meters: %.2fm' % max(df['Deviation from radius']))
     sns.boxplot(x='Location', y='Deviation from radius',
-                data=df, hue='Phone', showfliers=True)
+                data=df, showfliers=True)
     plt.figure()
     sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'samsung'],
                 label='samsung', cumulative=True)
@@ -110,6 +109,8 @@ def eval_uncertainty():
                 label='george', cumulative=True)
     sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'tiny phone'],
                 label='tiny phone', cumulative=True)
+    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'nikos'],
+                label='nikos', cumulative=True)
     plt.legend()
     plt.show()
 
@@ -119,7 +120,8 @@ def eval_uncertainty():
 # Location 2: room 53 (-2.0, 5.1), 4 Oct 2019 16:43:10 - 16:53
 # Location 3: room 56 (3.6, 9.5), 4 Oct 2019 16:54:10 - 17:04
 # Location 4: room 65 (-2.6, 27.0), 4 Oct 2019 17:05:10 - 17:15
-# Location 5: end of corridor (0.0, 29.0), 4 Oct 2019 17:16:10 - 17:26 #!1237
+# Location 5.1: end of corridor (0.0, 29.0), 4 Oct 2019 17:16:10 - 17:26 #!1237
+# Location 5.2: end of corridor (0.5, 22.5), 7 Oct 2019 14:18:00 - 14:28 #!244,246,314
 # Location 6: room 55 (-2.8, 9.55), 4 Oct 2019 17:27:10 - 17:37
 # Location 7: room 59 (-2.0, 17.0), 4 Oct 2019 17:38:15 - 17:48
 # Location 8: room 62 (3.7, 19.2), 4 Oct 2019 17:49:10 - 17:59
