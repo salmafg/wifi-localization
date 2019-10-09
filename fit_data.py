@@ -8,11 +8,17 @@ from scipy.optimize import curve_fit
 from sklearn.model_selection import LeaveOneOut
 from sklearn.neighbors.kde import KernelDensity
 
-from config import CURVE, CURVES
+from config import CURVE, CURVES, TRILATERATION
 from kalman_filter import KalmanFilter
 from utils import convert_date_to_secs, get_rss_fluctuation
 
-matplotlib.rcParams.update({'font.size': 20})
+matplotlib.rcParams.update({
+    'font.size': 22,
+    'font.family': 'serif',
+    'xtick.labelsize': 'x-small',
+    'ytick.labelsize': 'x-small',
+    'legend.fontsize': 'xx-small'
+})
 
 
 def log_func(rss, pl0, gamma):
@@ -63,7 +69,7 @@ def fit():
     # Plot raw data
     # plt.figure()
     # plt.plot(filtered_X, range(0, len(y)))
-    # plt.xlabel('RSS')
+    # plt.xlabel('RSSI (dB)')
     # plt.ylabel('Sample')
     # plt.show()
 
@@ -73,7 +79,7 @@ def fit():
         end_timestamp = convert_date_to_secs(CURVE[str(i)+'m_end'])
         time_ranges.append((start_timestamp, end_timestamp))
 
-    # Compute average RSS for every distance
+    # Compute average RSSI for every distance
     data = []
     avgs = []
     medians = []
@@ -93,15 +99,15 @@ def fit():
 
     plt.figure()
     plt.hist(data[:6], bins=30, label=range(0, 6))
-    plt.xlabel('RSS')
+    plt.xlabel('RSSI (dB)')
     plt.ylabel('Frequency')
     plt.legend(loc='upper right')
-    plt.title('RSS frequencies measured in the first 6 meters')
+    # plt.title('RSSI frequencies measured in the first 6 meters')
 
-    # Plot collective RSS histogram
+    # Plot collective RSSI histogram
     plt.figure()
     plt.hist(X, bins=30)
-    plt.xlabel('RSS')
+    plt.xlabel('RSSI')
     plt.ylabel('Frequency')
 
     # Plot averaged data
@@ -115,8 +121,8 @@ def fit():
     # Plot curve
     print(avgs)
     plt.plot(x, log_func(x, *popt), 'g--',
-             label='fit: RSS=%5.3f, gamma=%5.3f' % tuple(popt))
-    plt.xlabel('RSS')
+             label='fit: RSSI=%5.3f, gamma=%5.3f' % tuple(popt))
+    plt.xlabel('RSSI')
     plt.ylabel('Distance in meters')
     plt.legend()
     plt.show()
@@ -145,19 +151,25 @@ def fit_multiple():
             for p in X:
                 filtered_X.append(kalman.filter(int(p)))
 
-            # Plot raw data
-            # plt.figure()
-            # plt.plot(X, range(0, len(X)))
-            # plt.xlabel('RSS')
-            # plt.ylabel('Sample')
-            # plt.title('Raw data from ap %s for %s' % (ap, mac))
+            # # Plot raw data
+            plt.figure()
+            plt.plot(X, range(0, len(X)))
+            plt.xlabel('RSSI (dB)')
+            plt.ylabel('Sample')
+            plt.xlim(-80, -20)
+            plt.tight_layout()
+            # plt.title('Raw data from ap %s for %s' %
+            #           (ap, TRILATERATION['macs'][mac]))
 
             # Plot filtered data
-            # plt.figure()
-            # plt.plot(filtered_X, range(0, len(X)))
-            # plt.xlabel('RSS')
-            # plt.ylabel('Sample')
-            # plt.title('Filtered data from ap %s for %s' % (ap, mac))
+            plt.figure()
+            plt.plot(filtered_X, range(0, len(X)))
+            plt.xlabel('RSSI (dB)')
+            plt.ylabel('Sample')
+            plt.xlim(-80, -20)
+            plt.tight_layout()
+            # plt.title('Filtered data from ap %s for %s' %
+            #           (ap, TRILATERATION['macs'][mac]))
 
             time_ranges = []
             for i in distances:
@@ -166,11 +178,10 @@ def fit_multiple():
                 end_timestamp = convert_date_to_secs(CURVES[str(i)+'m_end'])
                 time_ranges.append((start_timestamp, end_timestamp))
 
-            # Compute average RSS for every distance
+            # Compute average RSSI for every distance
             data = []
             avgs = []
             medians = []
-            i = 0
             for s, e in time_ranges:
                 single_data = []
                 for p in t:
@@ -179,28 +190,30 @@ def fit_multiple():
                 data.append(single_data)
                 medians.append(median(single_data))
                 avgs.append(round(mean(single_data), 1))
-                # Plot raw data histograms
-                # plt.hist(single_data, bins=20, histtype='bar', label=i)
-                i += 1
             all_avgs.append(avgs)
 
             # Color-coded histogram
             plt.figure()
             plt.hist(data, bins=30, label=distances)
-            plt.xlabel('RSS')
+            plt.xlabel('RSSI (dB)')
             plt.ylabel('Frequency')
             plt.legend(loc='upper right')
-            plt.title('RSS frequencies from ap %s for %s' % (ap, mac))
+            plt.xlim(-80, -20)
+            plt.tight_layout()
+            # plt.title('RSSI frequencies as detected by ap %s from %s at different distances' %
+            #           (ap, TRILATERATION['macs'][mac]))
 
-            # Plot collective RSS histogram
+            # # Plot collective RSSI histogram
             plt.figure()
-            plt.hist(filtered_X, bins=30, label=mac,
+            plt.hist(filtered_X, bins=30,
                      density=True, histtype='step')
-            plt.xlabel('RSS')
+            plt.xlabel('RSSI (dB)')
             plt.ylabel('Frequency')
-            plt.title('Collective RSS from ap %s for %s' % (ap, mac))
+            plt.tight_layout()
+            # plt.title('Collective RSSI from ap %s for %s' %
+            #           (ap, TRILATERATION['macs'][mac]))
 
-            # Kernel Density Estimation
+            # # Kernel Density Estimation
             X = np.array(filtered_X)
             # bandwidths = 10 ** np.linspace(-1, 1, 100)
             # grid = GridSearchCV(KernelDensity(kernel='gaussian'),
@@ -208,54 +221,57 @@ def fit_multiple():
             #                     cv=LeaveOneOut.get_n_splits(X))
             # grid.fit(X[:, None])
             # bandwidth = grid.best_params_['bandwidth']
-            bandwidth = 2.0
-            X_d = np.linspace(-90, -10, X.shape[0])
+            bandwidth = 1.5
+            X_d = np.linspace(-80, -20, X.shape[0])
             kde = KernelDensity(
                 bandwidth=bandwidth, kernel='gaussian').fit(X[:, None])
             logprob = kde.score_samples(X_d[:, None])
-            plt.fill_between(X_d, np.exp(logprob), alpha=0.2,
-                             label='kernel', color='b')
-            plt.xlabel('RSS')
-            plt.ylabel('Probability Density')
-            plt.legend()
-            plt.title('Kernel estimation for ap %d with bandwidth=%.2f' %
-                      (ap, bandwidth))
+            plt.fill_between(X_d, np.exp(logprob), alpha=0.2, color='b')
+            plt.xlabel('RSSI (dB)')
+            plt.ylabel('Probability density')
+            plt.legend(loc='upper right')
+            plt.tight_layout()
+            # plt.title('Gaussian kernel estimation of RSSI data from ap %d' % (ap))
 
             # Plot averaged data
             plt.figure()
-            plt.plot(avgs, distances)
+            plt.plot(avgs, distances, label='averaged RSSI')
 
             # Fit curve
             popt, _ = curve_fit(log_func, avgs, distances)
 
             # Plot curve
             avgs.sort()
-            print('RSS averages for ap %s and device %s: %s' % (ap, mac, avgs))
+            print('RSSI averages for ap %s and device %s: %s' %
+                  (ap, TRILATERATION['macs'][mac], avgs))
             plt.plot(avgs, log_func(avgs, *popt), 'g--',
-                     label='fit: RSS=-%5.3f, gamma=%5.3f' % tuple(popt))
-            plt.xlabel('RSS')
-            plt.ylabel('Distance in meters')
-            plt.title('Curve fit for ap %s and device %s' % (ap, mac))
+                     label='fit: $d_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
+            plt.xlabel('RSSI (dB)')
+            plt.ylabel('Distance (m)')
+            # plt.title('Curve fit for ap %s and device %s' %
+            #           (ap, TRILATERATION['macs'][mac]))
             plt.ylim(0, 12)
-            plt.legend()
+            plt.legend(loc='upper right')
+            plt.tight_layout()
             plt.show()
     avged_avgs = []
     print(np.array(all_avgs))
     for i in np.array(all_avgs).T:
         avged_avgs.append(mean(i))
-    plt.plot(avged_avgs, distances, label='mean RSS')
+    plt.plot(avged_avgs, distances, label='mean RSSI')
     x, y = zip(*sorted(zip(avged_avgs, distances)))
     popt, _ = curve_fit(log_func, x, y)
 
     # Plot curve
-    print('Collective RSS averages: %s' % avged_avgs)
+    print('Collective RSSI averages: %s' % avged_avgs)
     plt.plot(x, log_func(x, *popt), 'g--',
-             label='fit: RSS=-%5.3f, gamma=%5.3f' % tuple(popt))
-    plt.xlabel('RSS')
-    plt.ylabel('Distance in meters')
-    plt.title('Ultimate curve fit')
+             label='fit: $d_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
+    plt.xlabel('RSSI (dB)')
+    plt.ylabel('Distance (m)')
+    # plt.title('Ultimate curve fit')
     plt.ylim(0, 12)
-    plt.legend()
+    plt.legend(loc='upper right')
+    plt.tight_layout()
     plt.show()
 
 
@@ -286,10 +302,10 @@ def fit_all():
             # Data Histogram
             # plt.figure()
             # plt.hist(X, bins=30, label=mac, histtype='step', density=True)
-            # plt.xlabel('RSS')
+            # plt.xlabel('RSSI (db)')
             # plt.ylabel('Frequency')
             # plt.legend()
-            # plt.title('Collective RSS for ap %d' % ap)
+            # plt.title('Collective RSSI for ap %d' % ap)
 
             # Kernel Density Estimation
             X = np.array(X)
@@ -307,8 +323,8 @@ def fit_all():
             logprob = kde.score_samples(X_d[:, None])
             plt.fill_between(X_d, np.exp(logprob), alpha=0.2,
                              label=mac)
-            plt.xlabel('RSS')
-            plt.ylabel('Probability Density')
+            plt.xlabel('RSSI (dB)')
+            plt.ylabel('Probability density')
             plt.legend()
             plt.title('Kernel estimation for ap %d with bandwidth=%.2f' %
                       (ap, bandwidth))
@@ -335,10 +351,10 @@ def fit_all():
 
             # Data Histogram
             # plt.hist(X, bins=30, label=ap, histtype='step', stacked=True)
-            # plt.xlabel('RSS')
+            # plt.xlabel('RSSI (dB)')
             # plt.ylabel('Frequency')
             # plt.legend()
-            # plt.title('Collective RSS for phone %s' % mac)
+            # plt.title('Collective RSSI for phone %s' % mac)
 
             # Kernel Density Estimation
             X = np.array(X)
@@ -356,8 +372,8 @@ def fit_all():
             logprob = kde.score_samples(X_d[:, None])
             plt.fill_between(X_d, np.exp(logprob), alpha=0.2,
                              label=ap)
-            plt.xlabel('RSS')
-            plt.ylabel('Probability Density')
+            plt.xlabel('RSSI (dB)')
+            plt.ylabel('Probability density')
             plt.legend()
             plt.title('Kernel estimation for device %s with bandwidth=%.2f' %
                       (mac, bandwidth))

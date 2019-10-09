@@ -1,3 +1,5 @@
+import math
+
 from scipy.optimize import least_squares
 
 from utils import distance
@@ -10,8 +12,9 @@ def residuals(guess, p, r):
         xi = p[i][0]
         yi = p[i][1]
         ri = r[i]
-        res += ((distance((x, y), (xi, yi)) - ri) / abs(ri), )
-        # res += ((distance((x, y), (xi, yi))/ri - math.log(ri)), )
+        # res += ((distance((x, y), (xi, yi)) - ri), ) # nls
+        # res += ((distance((x, y), (xi, yi)) - ri) / ri, ) # dist
+        res += ((distance((x, y), (xi, yi)) - ri) / ri**2, ) # var
     return res
 
 

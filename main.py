@@ -203,8 +203,9 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
         localization = None
 
         if len(p3) == 3:
-            args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
-            estimated_localization = trilaterate(*args)
+            # args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
+            # estimated_localization = trilaterate(*args)
+            estimated_localization = (0, 0)
             print('Trilateration estimate:', estimated_localization)
 
             # Compute uncertainty
@@ -213,59 +214,56 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 loc = nls(estimated_localization, p, r)
                 d_1 = distance(loc, rel_hist[user][len(rel_hist[user])-1])
                 if d_1 <= TRILATERATION['default_uncertainty']:
-                    # uncertainty = min(r.values()) + d_1
                     uncertainty = max(min(r.values()), d_1)
                 else:
                     try:
                         d_2 = distance(
                             loc, rel_hist[user][len(rel_hist[user])-2])
                         if d_2 <= TRILATERATION['default_uncertainty']:
-                            # uncertainty = min(r.values()) + d_2
                             uncertainty = max(min(r.values()), d_2)
                         else:
-                            # uncertainty = min(r.values()) + d_1
                             uncertainty = max(min(r.values()), d_1)
                     except:
                         pass
             except:
                 pass
+            finally:
+                uncertainty = round(uncertainty, 3)
             print('Uncertainty: %.1fm' % round(uncertainty, 1))
 
             # Non-linear least squares
             localization = nls(estimated_localization, p, r)
+            # localization = estimated_localization
             print('NLS estimate:', tuple(localization[:2]))
-
-            # Correct angle deviation
-            localization = rotate(localization, GEO['deviation'])
-            user = list(dict_of_macs.values())[
-                list(dict_of_macs.keys()).index(mac)]
-            print('Relative location:', localization)
 
             # Draw
             # draw(estimated_localization, localization, p, r)
 
-            # Compute absolute localization
-            lat = GEO['origin'][0] + localization[1]*GEO['oneMeterLat']
-            lng = GEO['origin'][1] + localization[0]*GEO['oneMeterLng']
+            # Correct angle deviation
+            corrected_localization = rotate(localization, GEO['deviation'])
+
+            # Compute geographic location
+            lat = GEO['origin'][0] + corrected_localization[1]*GEO['oneMeterLat']
+            lng = GEO['origin'][1] + corrected_localization[0]*GEO['oneMeterLng']
 
             # Move invalid point inside building to a valid location
             room = get_room_by_physical_location(lat, lng)
             # if polygons and room is None:
             closest_polygon, closest_room = get_closest_polygon(lng, lat)
-            point = Point(lng, lat)
-            p1, _ = nearest_points(closest_polygon, point)
-            p1_rel_x = (point.x - GEO['origin'][1]) / GEO['oneMeterLng']
-            p1_rel_y = (point.y - GEO['origin'][0]) / GEO['oneMeterLat']
-            d = (Point(p1_rel_x, p1_rel_y)).distance(Point(localization))
-            # print('New relative location:', (p1_rel_x, p1_rel_y))
+            p1, _ = nearest_points(closest_polygon, Point(lng, lat))
+            p1_rel_x = (p1.x - GEO['origin'][1]) / GEO['oneMeterLng']
+            p1_rel_y = (p1.y - GEO['origin'][0]) / GEO['oneMeterLat']
+            corrected_rel_loc = rotate((p1_rel_x, p1_rel_y), -GEO['deviation'])
+            d = (Point(corrected_rel_loc)).distance(Point(localization))
             lng, lat = p1.x, p1.y
-            # with open('data/eval/localization_2.csv', 'a') as csv_file:
-            #     writer = csv.writer(csv_file)
-            #     writer.writerow([user]+evaluate[1:len(evaluate)]+list(localization) +
-            #     [p1_rel_x, p1_rel_y, evaluate[0], room, closest_room, uncertainty])
-            # csv_file.close()
+            with open(evaluate[0], 'a') as csv_file:
+                writer = csv.writer(csv_file)
+                writer.writerow([user] + evaluate[2:len(evaluate)] +
+                                list(localization) + list(corrected_rel_loc) +
+                                [evaluate[1], room, closest_room, uncertainty])
+            csv_file.close()
             room = closest_room
-            print('...point was moved %.10fm' % round(d, 10))
+            print('...point was moved %.3fm' % d)
 
             # Machine learning prediction
             if model is not None:
@@ -290,6 +288,8 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 y_true.append(STATES.index(room))
 
             # Print observation
+            user = list(dict_of_macs.values())[
+                list(dict_of_macs.keys()).index(mac)]
             if mode == 'replay':
                 print('>> %s was observed in %s on %s' %
                       (user, room, timestamp))
@@ -323,7 +323,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                     'user': user,
                     'lat': lat,
                     'lng': lng,
-                    'radius': str(round(uncertainty, 2)),
+                    'radius': str(uncertainty),
                     'timestamp': timestamp
                 }
                 db.child(FIREBASE['table']).child(mac).set(data)
@@ -336,7 +336,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                     'longitude': lng,
                     'timestamp': timestamp,
                     'floor': 0,
-                    'radius': round(uncertainty, 2)
+                    'radius': uncertainty
                 }
                 publisher.send_message(msg)
 
@@ -358,14 +358,14 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 def main():
 
     # Train classifier and make predications
-    # m = classifier.train('knn')
-    obs1 = json.loads(open('data/hist/semantic1.json').read())
-    truth1 = json.loads(open('data/hist/truth1.json').read())
-    obs2 = json.loads(open('data/hist/semantic2.json').read())
-    truth2 = json.loads(open('data/hist/truth2.json').read())
-    # m = hmm.create(obs2) # create or fit then predict
-    # hmm.predict_all(m, obs1, truth1, 'map')
-    hmm.train(obs2, truth2, obs1, truth1)
+    # # m = classifier.train('knn')
+    # obs1 = json.loads(open('data/hist/semantic1.json').read())
+    # truth1 = json.loads(open('data/hist/truth1.json').read())
+    # obs2 = json.loads(open('data/hist/semantic2.json').read())
+    # truth2 = json.loads(open('data/hist/truth2.json').read())
+    # # m = hmm.create(obs2) # create or fit then predict
+    # # hmm.predict_all(m, obs1, truth1, 'map')
+    # hmm.train(obs2, truth2, obs1, truth1)
 
     # Mode 1: Trilateration in real-time
     # while True:
@@ -375,9 +375,17 @@ def main():
     # print(closest_access_points())
     # x = 32 - len(TRILATERATION['aps'])
     # print('x =', len(TRILATERATION['aps']))
-    # eval.plot_localization_error("data/eval/localization_2.csv")
     # eval.point_of_failure("data/eval/pof.csv")
     # eval.eval_uncertainty("data/eval/localization_1.csv")
+
+    eval.plot_localization_error("data/eval/trilat_only.csv")
+    eval.plot_localization_error("data/eval/nls_trilat.csv")
+    eval.plot_localization_error("data/eval/wnls_dist_trilat.csv")
+    eval.plot_localization_error("data/eval/wnls_var_trilat.csv")
+    eval.plot_localization_error("data/eval/nls_init_0.csv")
+    eval.plot_localization_error("data/eval/wnls_dist_0.csv")
+    eval.plot_localization_error("data/eval/wnls_var_0.csv")
+
     # data = get_hist_data()
     # print('Data retrieved.')
     # global usernames
@@ -391,7 +399,16 @@ def main():
     #         dict_of_macs[r['payload']['mac']] = username
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data, project=True, polygons=True, evaluate=['the corridor', 10, 0.0, 1.8])
+    #     run('replay', data, project=True, polygons=True,
+            # evaluate=['data/eval/wnls_var_0.csv', '00.11.053', 2, -2.0, 5.1])
+            # evaluate=['data/eval/wnls_var_trilat.csv', '00.11.056', 3, 3.6, 9.5])
+            # evaluate=['data/eval/wnls_var_0.csv', '00.11.065', 4, -2.6, 27.0])
+            # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 5, 0.5, 22.5])
+            # evaluate=['data/eval/wnls_var_0.csv', '00.11.055', 6, -2.8, 9.55])
+            # evaluate=['data/eval/wnls_var_0.csv', '00.11.059', 7, -2.0, 17.0])
+            # evaluate=['data/eval/wnls_var_0.csv', '00.11.062', 8, 3.7, 19.2])
+            # evaluate=['data/eval/wnls_var_0.csv', '00.11.051', 9, -2.4, 1.76])
+            # evaluate=['data/eval/wnls_dist_0.csv', 'the corridor', 10, 0.0, 1.8])
     # print(closest_access_points())
     # plot_localization(sem_hist)
 

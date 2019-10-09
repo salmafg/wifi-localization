@@ -24,45 +24,49 @@ def plot_localization_error(filename):
     # Location 9: room 51
     # Location 10: beginnning of corridor
     df = pd.read_csv(filename)
-    df['Error in meters'] = df.apply(lambda row: distance(
+    df['Error in meters no polygons'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])), axis=1)
     df['Error in meters with polygons'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['new_x'], row['new_y'])), axis=1)
-    print('Mean error in meters: %.3fm' % mean(df['Error in meters']))
-    print('Min. error in meters: %.3fm' % min(df['Error in meters']))
-    print('Max. error in meters: %.3fm' % max(df['Error in meters']))
-    sns.boxplot(x='Location', y='Error in meters', data=df, showfliers=True)
-    plt.figure()
-    sns.kdeplot(df['Error in meters'][df['Phone'] == 'samsung'],
-                label='samsung', cumulative=True)
-    sns.kdeplot(df['Error in meters'][df['Phone'] == 'nikos'],
-                label='nikos', cumulative=True)
-    sns.kdeplot(df['Error in meters'][df['Phone'] == 'tiny phone'],
-                label='tiny phone', cumulative=True)
-    sns.kdeplot(df['Error in meters'][df['Phone'] == 'george'],
-                label='george', cumulative=True)
-    plt.xlim(0, 18)
-    plt.legend()
-    plt.figure()
-    plt.hist(df['Error in meters'][df['Phone'] == 'tiny phone'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='tiny phone')
-    plt.hist(df['Error in meters'][df['Phone'] == 'samsung'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='samsung')
-    plt.hist(df['Error in meters'][df['Phone'] == 'nikos'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='nikos')
-    plt.hist(df['Error in meters'][df['Phone'] == 'george'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='george')
-    plt.xlabel('Error in meters')
-    plt.ylabel('CDF')
-    plt.xlim(0, 15)
-    plt.legend()
-    plt.show()
+    print('Case: %s' % filename)
+    print('Mean error (m) no polygons: %.3fm' % mean(df['Error in meters no polygons']))
+    print('Min. error (m) no polygons: %.3fm' % min(df['Error in meters no polygons']))
+    print('Max. error (m) no polygons: %.3fm' % max(df['Error in meters no polygons']))
+    print('Mean error (m) with polygons: %.3fm' % mean(df['Error in meters with polygons']))
+    print('Min. error (m) with polygons: %.3fm' % min(df['Error in meters with polygons']))
+    print('Max. error (m) with polygons: %.3fm' % max(df['Error in meters with polygons']))
+    # sns.boxplot(x='Location', y='Error in meters', data=df, showfliers=True)
+    # plt.figure()
+    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'samsung'],
+    #             label='samsung', cumulative=True)
+    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'nikos'],
+    #             label='nikos', cumulative=True)
+    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'tiny phone'],
+    #             label='tiny phone', cumulative=True)
+    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'george'],
+    #             label='george', cumulative=True)
+    # plt.xlim(0, 18)
+    # plt.legend()
+    # plt.figure()
+    # plt.hist(df['Error in meters'][df['Phone'] == 'tiny phone'],
+    #          histtype='step', cumulative=True, density=True, bins=1000, label='tiny phone')
+    # plt.hist(df['Error in meters'][df['Phone'] == 'samsung'],
+    #          histtype='step', cumulative=True, density=True, bins=1000, label='samsung')
+    # plt.hist(df['Error in meters'][df['Phone'] == 'nikos'],
+    #          histtype='step', cumulative=True, density=True, bins=1000, label='nikos')
+    # plt.hist(df['Error in meters'][df['Phone'] == 'george'],
+    #          histtype='step', cumulative=True, density=True, bins=1000, label='george')
+    # plt.xlabel('Error in meters')
+    # plt.ylabel('CDF')
+    # plt.xlim(0, 15)
+    # plt.legend()
+    # plt.show()
     before = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
                             df['No polygons'][df['No polygons'] == 'unknown'])
     after = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
                            df['Polygons'][df['No polygons'] == 'unknown'])
-    print('Before applying polygons:', before)
-    print('After applying polygons:', after)
+    # print('Before applying polygons:', before)
+    # print('After applying polygons:', after)
     print('%.1f%% improvement' % (100*after-100*before))
 
 
