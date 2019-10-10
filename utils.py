@@ -44,7 +44,7 @@ def rotate(point, angle):
 
 
 def convert_date_to_secs(date):
-    date = datetime.strptime(date, '%d %b %Y %H:%M')
+    date = datetime.strptime(date, '%d %b %Y %H:%M:%S')
     return int(date.timestamp())
 
 

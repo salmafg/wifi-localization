@@ -31,7 +31,7 @@ dict_of_macs = TRILATERATION['macs']
 window_start = convert_date_to_secs(TRILATERATION['start'])
 rel_hist = {}
 try:
-    sem_hist = json.loads(open('data/hist/semantic2.json').read())
+    sem_hist = json.loads(open('data/hist/semantic3.json').read())
 except:
     sem_hist = {}
 last_rss = [-60]*len(TRILATERATION['aps'])
@@ -42,52 +42,6 @@ y_pred = []
 with open('data/usernames.csv', 'r') as f:
     reader = csv.reader(f)
     usernames = flatten(list(reader))
-
-
-def run_kalman_filter_rss():
-
-    # Query and plot unfiltered data
-    t, y, avg = get_rss_fluctuation(
-        RSS['start'], RSS['end'], RSS['ap'], RSS['mac'])
-    devs = [-int(abs(i)-abs(avg)) if i <= avg else -
-            int(abs(avg)-abs(i)) for i in y]
-    plt.hist(devs, color='blue', edgecolor='black', bins=int(len(y)/10))
-    plt.xlim(left=min(y))
-    plt.show()
-    tperiod = max(t) - min(t)
-    trange = np.linspace(0, tperiod, len(y))
-    print('Avg. RSS: ', avg)
-    plt.plot(trange, y)
-    plt.hlines(avg, 0, tperiod, 'k', 'dashed')
-    plt.title('RSS fluctuation')
-    plt.show()
-
-    plt.hist(y, color='blue', edgecolor='black', bins=int(len(t)/10))
-    plt.title('Histogram of RSS at 1m')
-    plt.xlabel('RSS')
-    plt.show()
-
-    # Apply Kalman filter and plot results
-    kalman = KalmanFilter(0.008, 0.1)
-    filtered_data = []
-    sum_filtered = 0
-    for i in y:
-        filtered_i = kalman.filter(i)
-        sum_filtered += filtered_i
-        filtered_data.append(filtered_i)
-    avg_filtered = sum_filtered / len(filtered_data)
-    print('Avg. filtered RSS: ', avg_filtered)
-    plt.plot(trange, filtered_data)
-    plt.ylim(min(y), max(y))
-    plt.hlines(avg_filtered, 0, tperiod, 'k', 'dashed')
-    plt.show()
-
-    plt.hist(filtered_data, color='blue',
-             edgecolor='black', bins=int(len(t)/10))
-    plt.title('Histogram of filtered RSS at 1m')
-    plt.xlim(min(y), max(y))
-    plt.xlabel('RSS')
-    plt.show()
 
 
 def run(mode, data=None, model=None, record=False, broadcast=False, polygons=True, project=True, evaluate=[]):
@@ -203,9 +157,8 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
         localization = None
 
         if len(p3) == 3:
-            # args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
-            # estimated_localization = trilaterate(*args)
-            estimated_localization = (0, 0)
+            args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
+            estimated_localization = trilaterate(*args)
             print('Trilateration estimate:', estimated_localization)
 
             # Compute uncertainty
@@ -233,7 +186,6 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 
             # Non-linear least squares
             localization = nls(estimated_localization, p, r)
-            # localization = estimated_localization
             print('NLS estimate:', tuple(localization[:2]))
 
             # Draw
@@ -243,36 +195,34 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
             corrected_localization = rotate(localization, GEO['deviation'])
 
             # Compute geographic location
-            lat = GEO['origin'][0] + corrected_localization[1]*GEO['oneMeterLat']
-            lng = GEO['origin'][1] + corrected_localization[0]*GEO['oneMeterLng']
+            lat = GEO['origin'][0] + \
+                corrected_localization[1]*GEO['oneMeterLat']
+            lng = GEO['origin'][1] + \
+                corrected_localization[0]*GEO['oneMeterLng']
 
             # Move invalid point inside building to a valid location
             room = get_room_by_physical_location(lat, lng)
-            # if polygons and room is None:
-            closest_polygon, closest_room = get_closest_polygon(lng, lat)
-            p1, _ = nearest_points(closest_polygon, Point(lng, lat))
-            p1_rel_x = (p1.x - GEO['origin'][1]) / GEO['oneMeterLng']
-            p1_rel_y = (p1.y - GEO['origin'][0]) / GEO['oneMeterLat']
-            corrected_rel_loc = rotate((p1_rel_x, p1_rel_y), -GEO['deviation'])
-            d = (Point(corrected_rel_loc)).distance(Point(localization))
-            lng, lat = p1.x, p1.y
-            with open(evaluate[0], 'a') as csv_file:
-                writer = csv.writer(csv_file)
-                writer.writerow([user] + evaluate[2:len(evaluate)] +
-                                list(localization) + list(corrected_rel_loc) +
-                                [evaluate[1], room, closest_room, uncertainty])
-            csv_file.close()
-            room = closest_room
-            print('...point was moved %.3fm' % d)
+            if polygons and room is None:
+                closest_polygon, closest_room = get_closest_polygon(lng, lat)
+                p1, _ = nearest_points(closest_polygon, Point(lng, lat))
+                p1_rel_x = (p1.x - GEO['origin'][1]) / GEO['oneMeterLng']
+                p1_rel_y = (p1.y - GEO['origin'][0]) / GEO['oneMeterLat']
+                corrected_rel_loc = rotate(
+                    (p1_rel_x, p1_rel_y), -GEO['deviation'])
+                d = (Point(corrected_rel_loc)).distance(Point(localization))
+                lng, lat = p1.x, p1.y
+                # with open(evaluate[0], 'a') as csv_file:
+                #     writer = csv.writer(csv_file)
+                #     writer.writerow([user] + evaluate[2:len(evaluate)] +
+                #                     list(localization) + list(corrected_rel_loc) +
+                #                     [evaluate[1], room, closest_room, uncertainty])
+                # csv_file.close()
+                room = closest_room
+                print('...point was moved %.3fm' % d)
 
             # Machine learning prediction
             if model is not None:
                 temp = list(dict_of_rss.values())
-                # for i, _ in enumerate(temp):
-                #     if temp[i] == -1:
-                #         temp[i] = last_rss[i]
-                #     else:
-                #         last_rss[i] = temp[i]
                 temp = np.atleast_2d(temp)
                 pred, prob = classifier.predict_room(model, temp)
                 print('>> model prediction in %s with probability %f' %
@@ -350,7 +300,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 
         # HMM
         # data = json.dumps(sem_hist)
-        # f = open('data/hist/semantic2.json', "w")
+        # f = open('data/hist/semantic3.json', "w")
         # f.write(data)
         # f.close()
 
@@ -359,13 +309,13 @@ def main():
 
     # Train classifier and make predications
     # # m = classifier.train('knn')
-    # obs1 = json.loads(open('data/hist/semantic1.json').read())
-    # truth1 = json.loads(open('data/hist/truth1.json').read())
-    # obs2 = json.loads(open('data/hist/semantic2.json').read())
-    # truth2 = json.loads(open('data/hist/truth2.json').read())
+    # train_x = json.loads(open('data/hist/train_x.json').read())
+    # train_y = json.loads(open('data/hist/train_y.json').read())
+    # test_x = json.loads(open('data/hist/semantic1.json').read())
+    # test_y = json.loads(open('data/hist/truth1.json').read())
     # # m = hmm.create(obs2) # create or fit then predict
     # # hmm.predict_all(m, obs1, truth1, 'map')
-    # hmm.train(obs2, truth2, obs1, truth1)
+    # hmm.train(train_x, train_y, test_x, test_y)
 
     # Mode 1: Trilateration in real-time
     # while True:
@@ -400,15 +350,15 @@ def main():
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
     #     run('replay', data, project=True, polygons=True,
-            # evaluate=['data/eval/wnls_var_0.csv', '00.11.053', 2, -2.0, 5.1])
-            # evaluate=['data/eval/wnls_var_trilat.csv', '00.11.056', 3, 3.6, 9.5])
-            # evaluate=['data/eval/wnls_var_0.csv', '00.11.065', 4, -2.6, 27.0])
-            # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 5, 0.5, 22.5])
-            # evaluate=['data/eval/wnls_var_0.csv', '00.11.055', 6, -2.8, 9.55])
-            # evaluate=['data/eval/wnls_var_0.csv', '00.11.059', 7, -2.0, 17.0])
-            # evaluate=['data/eval/wnls_var_0.csv', '00.11.062', 8, 3.7, 19.2])
-            # evaluate=['data/eval/wnls_var_0.csv', '00.11.051', 9, -2.4, 1.76])
-            # evaluate=['data/eval/wnls_dist_0.csv', 'the corridor', 10, 0.0, 1.8])
+    # evaluate=['data/eval/wnls_var_0.csv', '00.11.053', 2, -2.0, 5.1])
+    # evaluate=['data/eval/wnls_var_trilat.csv', '00.11.056', 3, 3.6, 9.5])
+    # evaluate=['data/eval/wnls_var_0.csv', '00.11.065', 4, -2.6, 27.0])
+    # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 5, 0.5, 22.5])
+    # evaluate=['data/eval/wnls_var_0.csv', '00.11.055', 6, -2.8, 9.55])
+    # evaluate=['data/eval/wnls_var_0.csv', '00.11.059', 7, -2.0, 17.0])
+    # evaluate=['data/eval/wnls_var_0.csv', '00.11.062', 8, 3.7, 19.2])
+    # evaluate=['data/eval/wnls_var_0.csv', '00.11.051', 9, -2.4, 1.76])
+    # evaluate=['data/eval/wnls_dist_0.csv', 'the corridor', 10, 0.0, 1.8])
     # print(closest_access_points())
     # plot_localization(sem_hist)
 

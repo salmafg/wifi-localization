@@ -17,7 +17,8 @@ matplotlib.rcParams.update({
     'font.family': 'serif',
     'xtick.labelsize': 'x-small',
     'ytick.labelsize': 'x-small',
-    'legend.fontsize': 'xx-small'
+    'legend.fontsize': 'xx-small',
+    'figure.autolayout': True
 })
 
 
@@ -122,8 +123,8 @@ def fit():
     print(avgs)
     plt.plot(x, log_func(x, *popt), 'g--',
              label='fit: RSSI=%5.3f, gamma=%5.3f' % tuple(popt))
-    plt.xlabel('RSSI')
-    plt.ylabel('Distance in meters')
+    plt.xlabel('RSSI (dB)')
+    plt.ylabel('Distance (m)')
     plt.legend()
     plt.show()
 
@@ -157,7 +158,6 @@ def fit_multiple():
             plt.xlabel('RSSI (dB)')
             plt.ylabel('Sample')
             plt.xlim(-80, -20)
-            plt.tight_layout()
             # plt.title('Raw data from ap %s for %s' %
             #           (ap, TRILATERATION['macs'][mac]))
 
@@ -167,7 +167,6 @@ def fit_multiple():
             plt.xlabel('RSSI (dB)')
             plt.ylabel('Sample')
             plt.xlim(-80, -20)
-            plt.tight_layout()
             # plt.title('Filtered data from ap %s for %s' %
             #           (ap, TRILATERATION['macs'][mac]))
 
@@ -199,7 +198,6 @@ def fit_multiple():
             plt.ylabel('Frequency')
             plt.legend(loc='upper right')
             plt.xlim(-80, -20)
-            plt.tight_layout()
             # plt.title('RSSI frequencies as detected by ap %s from %s at different distances' %
             #           (ap, TRILATERATION['macs'][mac]))
 
@@ -209,7 +207,6 @@ def fit_multiple():
                      density=True, histtype='step')
             plt.xlabel('RSSI (dB)')
             plt.ylabel('Frequency')
-            plt.tight_layout()
             # plt.title('Collective RSSI from ap %s for %s' %
             #           (ap, TRILATERATION['macs'][mac]))
 
@@ -230,7 +227,6 @@ def fit_multiple():
             plt.xlabel('RSSI (dB)')
             plt.ylabel('Probability density')
             plt.legend(loc='upper right')
-            plt.tight_layout()
             # plt.title('Gaussian kernel estimation of RSSI data from ap %d' % (ap))
 
             # Plot averaged data
@@ -252,7 +248,6 @@ def fit_multiple():
             #           (ap, TRILATERATION['macs'][mac]))
             plt.ylim(0, 12)
             plt.legend(loc='upper right')
-            plt.tight_layout()
             plt.show()
     avged_avgs = []
     print(np.array(all_avgs))
@@ -271,7 +266,6 @@ def fit_multiple():
     # plt.title('Ultimate curve fit')
     plt.ylim(0, 12)
     plt.legend(loc='upper right')
-    plt.tight_layout()
     plt.show()
 
 

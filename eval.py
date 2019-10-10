@@ -8,8 +8,14 @@ from sklearn.metrics import accuracy_score
 
 from utils import distance
 
-matplotlib.rcParams.update({'font.size': 20})
-
+matplotlib.rcParams.update({
+    'font.size': 22,
+    'font.family': 'serif',
+    'xtick.labelsize': 'x-small',
+    'ytick.labelsize': 'x-small',
+    'legend.fontsize': 'xx-small',
+    'figure.autolayout': True
+})
 
 def plot_localization_error(filename):
     # Localization error experiment
@@ -29,38 +35,45 @@ def plot_localization_error(filename):
     df['Error in meters with polygons'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['new_x'], row['new_y'])), axis=1)
     print('Case: %s' % filename)
-    print('Mean error (m) no polygons: %.3fm' % mean(df['Error in meters no polygons']))
-    print('Min. error (m) no polygons: %.3fm' % min(df['Error in meters no polygons']))
-    print('Max. error (m) no polygons: %.3fm' % max(df['Error in meters no polygons']))
-    print('Mean error (m) with polygons: %.3fm' % mean(df['Error in meters with polygons']))
-    print('Min. error (m) with polygons: %.3fm' % min(df['Error in meters with polygons']))
-    print('Max. error (m) with polygons: %.3fm' % max(df['Error in meters with polygons']))
-    # sns.boxplot(x='Location', y='Error in meters', data=df, showfliers=True)
+    print('Mean error (m) no polygons: %.3fm' %
+          mean(df['Error in meters no polygons']))
+    print('Min. error (m) no polygons: %.3fm' %
+          min(df['Error in meters no polygons']))
+    print('Max. error (m) no polygons: %.3fm' %
+          max(df['Error in meters no polygons']))
+    print('Mean error (m) with polygons: %.3fm' %
+          mean(df['Error in meters with polygons']))
+    print('Min. error (m) with polygons: %.3fm' %
+          min(df['Error in meters with polygons']))
+    print('Max. error (m) with polygons: %.3fm' %
+          max(df['Error in meters with polygons']))
+    sns.boxplot(x='Location', y='Error in meters no polygons',
+                data=df, showfliers=True, color="skyblue")
     # plt.figure()
-    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'samsung'],
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'samsung'],
     #             label='samsung', cumulative=True)
-    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'nikos'],
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'nikos'],
     #             label='nikos', cumulative=True)
-    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'tiny phone'],
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'tiny phone'],
     #             label='tiny phone', cumulative=True)
-    # sns.kdeplot(df['Error in meters'][df['Phone'] == 'george'],
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'george'],
     #             label='george', cumulative=True)
     # plt.xlim(0, 18)
     # plt.legend()
     # plt.figure()
-    # plt.hist(df['Error in meters'][df['Phone'] == 'tiny phone'],
+    # plt.hist(df['Error in meters no polygons'][df['Phone'] == 'tiny phone'],
     #          histtype='step', cumulative=True, density=True, bins=1000, label='tiny phone')
-    # plt.hist(df['Error in meters'][df['Phone'] == 'samsung'],
+    # plt.hist(df['Error in meters no polygons'][df['Phone'] == 'samsung'],
     #          histtype='step', cumulative=True, density=True, bins=1000, label='samsung')
-    # plt.hist(df['Error in meters'][df['Phone'] == 'nikos'],
+    # plt.hist(df['Error in meters no polygons'][df['Phone'] == 'nikos'],
     #          histtype='step', cumulative=True, density=True, bins=1000, label='nikos')
-    # plt.hist(df['Error in meters'][df['Phone'] == 'george'],
+    # plt.hist(df['Error in meters no polygons'][df['Phone'] == 'george'],
     #          histtype='step', cumulative=True, density=True, bins=1000, label='george')
-    # plt.xlabel('Error in meters')
+    # plt.xlabel('Error in meters no polygons')
     # plt.ylabel('CDF')
     # plt.xlim(0, 15)
     # plt.legend()
-    # plt.show()
+    plt.show()
     before = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
                             df['No polygons'][df['No polygons'] == 'unknown'])
     after = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],

@@ -1,5 +1,6 @@
 import warnings
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -13,6 +14,14 @@ from mi import MAP
 from utils import plot_confusion_matrix
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+matplotlib.rcParams.update({
+    'font.size': 22,
+    'font.family': 'serif',
+    'xtick.labelsize': 'x-small',
+    'ytick.labelsize': 'x-small',
+    'legend.fontsize': 'xx-small',
+    'figure.autolayout': True
+})
 
 
 def create(data):
@@ -110,7 +119,7 @@ def train(obs, labels, test_X, test_y):
     hmm = HiddenMarkovModel.from_matrix(trans_prob, dists, start_prob)
     hmm.fit(np.atleast_2d(X).T, labels=np.atleast_2d(y).T, algorithm='baum-welch')
     seq = hmm.predict(z, algorithm='map')
-    print(seq)
+    # print(seq)
     print('dataset 1:', hmm.score(X, y))
     print('dataset 2:', hmm.score(z, w))
     plot(test_X, seq, test_y, len_z, 'map')
@@ -196,8 +205,8 @@ def plot(obs, preds, truth, len_X, alg):
     plt.step(obs_df['col1'], obs_df['col2'], '--', label="observations",
              ms=6, color="tab:blue", alpha=0.7)
     plt.legend(loc='best')
-    plt.title(
-        'Time-series localization data collected walking through TU campus Garching')
+    # plt.title(
+    #     'Time-series localization data collected walking through TU campus Garching')
     plt.figure()
     sentinel, = plt.plot(
         np.repeat(truth_df.col1.values[0], len(STATES)), STATES)
