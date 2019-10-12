@@ -269,8 +269,7 @@ def ml_plot(obs, pred, len_X, alg):
         plt.show()
 
 
-def closest_access_points():
-    p = (1.0, 7.0)
+def closest_access_points(p):
     aps_sorted = {}
     for ap in TRILATERATION['aps']:
         aps_sorted[ap['id']] = distance(p, ap['xy'])
