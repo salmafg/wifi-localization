@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import time
+from datetime import datetime
 
 import AWSIoTPythonSDK
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
@@ -95,8 +96,9 @@ def get_messages():
     """
     Listen to topic
     """
-    time.sleep(TRILATERATION['window_size'])
+    time.sleep(TRILATERATION['stride_size'])
     global messages
     data = messages
-    messages = []
+    messages[:] = [item for item in messages if item['timestamp'] +
+                   TRILATERATION['window_size'] > datetime.now().timestamp()]
     return data

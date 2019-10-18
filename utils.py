@@ -29,6 +29,15 @@ def distance(p1, p2):
     return d
 
 
+def centroid():
+    """
+    Computes centroid of AP locations
+    """
+    xs = [a['xy'][0] for a in TRILATERATION['aps']]
+    ys = [a['xy'][1] for a in TRILATERATION['aps']]
+    return (sum(xs)/len(TRILATERATION['aps']), sum(ys)/len(TRILATERATION['aps']))
+
+
 def rotate(point, angle):
     """
     Rotate a point clockwise by a given angle around a given origin.

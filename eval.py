@@ -1,23 +1,25 @@
-from statistics import mean
+from statistics import mean, median
 
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.metrics import accuracy_score
 
-from utils import distance
+from utils import closest_access_points, distance
 
 matplotlib.rcParams.update({
-    'font.size': 22,
+    'font.size': 20,
     'font.family': 'serif',
-    'xtick.labelsize': 'x-small',
-    'ytick.labelsize': 'x-small',
+    'xtick.labelsize': 'xx-small',
+    'ytick.labelsize': 'xx-small',
     'legend.fontsize': 'xx-small',
     'figure.autolayout': True
 })
 
-def plot_localization_error(filename):
+
+def localization_error(filename):
     # Localization error experiment
     # Location 1: middle of corridor
     # Location 2: room 53
@@ -30,6 +32,8 @@ def plot_localization_error(filename):
     # Location 9: room 51
     # Location 10: beginnning of corridor
     df = pd.read_csv(filename)
+    # df['Location'] = 1
+    # df['Phone'] = 'george'
     df['Error in meters no polygons'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])), axis=1)
     df['Error in meters with polygons'] = df.apply(lambda row: distance(
@@ -37,57 +41,59 @@ def plot_localization_error(filename):
     print('Case: %s' % filename)
     print('Mean error (m) no polygons: %.3fm' %
           mean(df['Error in meters no polygons']))
-    print('Min. error (m) no polygons: %.3fm' %
-          min(df['Error in meters no polygons']))
-    print('Max. error (m) no polygons: %.3fm' %
-          max(df['Error in meters no polygons']))
+    print('Median error (m) no polygons: %.3fm' %
+          median(df['Error in meters no polygons']))
+    # print('Min. error (m) no polygons: %.3fm' %
+    #       min(df['Error in meters no polygons']))
+    # print('Max. error (m) no polygons: %.3fm' %
+    #       max(df['Error in meters no polygons']))
     print('Mean error (m) with polygons: %.3fm' %
           mean(df['Error in meters with polygons']))
-    print('Min. error (m) with polygons: %.3fm' %
-          min(df['Error in meters with polygons']))
-    print('Max. error (m) with polygons: %.3fm' %
-          max(df['Error in meters with polygons']))
+    print('Median error (m) with polygons: %.3fm' %
+          median(df['Error in meters with polygons']))
+    # print('Min. error (m) with polygons: %.3fm' %
+    #       min(df['Error in meters with polygons']))
+    # print('Max. error (m) with polygons: %.3fm' %
+    #       max(df['Error in meters with polygons']))
     sns.boxplot(x='Location', y='Error in meters no polygons',
                 data=df, showfliers=True, color="skyblue")
     plt.ylabel('Error (m)')
+    # plt.figure()
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'samsung'],
+    #             label='samsung', cumulative=True, label='Phone A')
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'nikos'],
+    #             label='nikos', cumulative=True, label='Phone D')
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'tiny phone'],
+    #             label='tiny phone', cumulative=True, label='Phone B')
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'george'],
+    #             label='george', cumulative=True, label='Phone C')
+    # sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'lg'],
+    #             label='lg', cumulative=True, label='Phone E')
+    # plt.xlabel('Error (m)')
+    # plt.ylabel('CDF')
+    # plt.xlim(0, 18)
+    # plt.legend()
     plt.figure()
-    sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'samsung'],
-                label='samsung', cumulative=True)
-    sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'nikos'],
-                label='nikos', cumulative=True)
-    sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'tiny phone'],
-                label='tiny phone', cumulative=True)
-    sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'george'],
-                label='george', cumulative=True)
-    sns.kdeplot(df['Error in meters no polygons'][df['Phone'] == 'lg'],
-                label='lg', cumulative=True)
-    plt.xlabel('Error (m)')
-    plt.ylabel('CDF')
-    plt.xlim(0, 18)
-    plt.legend()
-    plt.figure()
-    plt.hist(df['Error in meters no polygons'][df['Phone'] == 'tiny phone'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='tiny phone')
     plt.hist(df['Error in meters no polygons'][df['Phone'] == 'samsung'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='samsung')
-    plt.hist(df['Error in meters no polygons'][df['Phone'] == 'nikos'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='nikos')
+             histtype='step', cumulative=True, density=True, bins=1000, label='Phone A')
+    plt.hist(df['Error in meters no polygons'][df['Phone'] == 'tiny phone'],
+             histtype='step', cumulative=True, density=True, bins=1000, label='Phone B')
     plt.hist(df['Error in meters no polygons'][df['Phone'] == 'george'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='george')
+             histtype='step', cumulative=True, density=True, bins=1000, label='Phone C')
+    plt.hist(df['Error in meters no polygons'][df['Phone'] == 'nikos'],
+             histtype='step', cumulative=True, density=True, bins=1000, label='Phone D')
     plt.hist(df['Error in meters no polygons'][df['Phone'] == 'lg'],
-             histtype='step', cumulative=True, density=True, bins=1000, label='lg')
+             histtype='step', cumulative=True, density=True, bins=1000, label='Phone E')
     plt.xlabel('Error (m)')
     plt.ylabel('CDF')
-    plt.xlim(0, 15)
-    plt.legend()
+    plt.xlim(0, 7.6)
+    plt.legend(loc='lower right')
     plt.show()
-    before = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
-                            df['No polygons'][df['No polygons'] == 'unknown'])
-    after = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
-                           df['Polygons'][df['No polygons'] == 'unknown'])
-    # print('Before applying polygons:', before)
-    # print('After applying polygons:', after)
-    print('%.1f%% improvement' % (100*after-100*before))
+    # before = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
+    #                         df['No polygons'][df['No polygons'] == 'unknown'])
+    # after = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
+    #                        df['Polygons'][df['No polygons'] == 'unknown'])
+    # print('%.1f%% improvement' % (100*after-100*before))
 
 
 def point_of_failure(filename):
@@ -99,13 +105,31 @@ def point_of_failure(filename):
     df = pd.read_csv(filename)
     df['Error in meters'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])), axis=1)
+    df['Error'] = df['obs_y'] - df['true_y']
+    # sns.boxplot(x='Connected', y='Error', data=df, order=range(29, 2, -1))
     # print(df)
+    sns.scatterplot(x='obs_x', y='obs_y', sizes=2,
+                    hue_norm=(3, 29), hue='Connected', data=df)
+    plt.scatter(df['true_x'][0], df['true_y'][0], c='black', marker='x', alpha=1)
+    plt.xlabel('Predicted x location')
+    plt.ylabel('Predicted y location')
+    # plt.scatter(df['obs_x'], df['obs_y'], label=df['Connected'])
     print('Mean error in meters: %.2fm' % mean(df['Error in meters']))
     print('Min. error in meters: %.2fm' % min(df['Error in meters']))
     print('Max. error in meters: %.2fm' % max(df['Error in meters']))
-    sns.boxplot(x='Closest', y='Error in meters', data=df)
-    plt.xlabel('Closest access point (m)')
+    plt.figure(figsize=(12.0, 8.0))
+    ax = sns.boxplot(x='Connected', y='Error in meters',
+                     data=df, order=range(29, 2, -1))
+    plt.xlabel('Number of Connected APs')
     plt.ylabel('Error (m)')
+    ax2 = ax.twiny()
+    distances = [round(y, 3) for (x, y) in closest_access_points(
+        (df['true_x'][0], df['true_y'][0]))]
+    print(distances)
+    ax2.xaxis.set_ticks(np.arange(0.5, 27.5, 1))
+    ax2.xaxis.set_ticklabels(distances)
+    ax2.set_xlabel('Distance to Closest AP (m)')
+    plt.xticks(rotation=50)
     # plt.figure()
     # for i in range(0, 29):
     #     sns.kdeplot(df['Error in meters'][df['Connected'] == i],
@@ -115,11 +139,12 @@ def point_of_failure(filename):
     plt.show()
 
 
-def eval_uncertainty(filename):
+def uncertainty(filename):
     df = pd.read_csv(filename)
     df['Deviation from radius'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])) - row['Uncertainty'], axis=1)
-    # print(df.head())
+    df['Location'] = 1
+    print(df.head())
     print('Mean deviation in meters: %.2fm' %
           mean(df['Deviation from radius']))
     print('Min. deviation in meters: %.2fm' % min(df['Deviation from radius']))
@@ -136,6 +161,8 @@ def eval_uncertainty(filename):
                 label='tiny phone', cumulative=True)
     sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'nikos'],
                 label='nikos', cumulative=True)
+    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'lg'],
+                label='lg', cumulative=True)
     plt.xlabel('Deviation from uncertainty radius (m)')
     plt.ylabel('CDF')
     plt.xlim(-20, 20)
@@ -158,6 +185,32 @@ def rssi_threshold(filename):
     # plt.ylabel('CDF')
     plt.show()
 
+
+def distance_estimation(dlos, nlos):
+    ddf = pd.read_csv(dlos)
+    # ddf = ddf[(ddf['phone'] == 'lg') | (ddf['phone'] == 'nikos')]
+    ddf.groupby('true_distance')[
+        'estimated_distance'].mean().plot(label='DLOS')
+    ndf = pd.read_csv(nlos)
+    # ndf = ndf[(ndf['phone'] == 'lg') | (ndf['phone'] == 'nikos')]
+    ndf.groupby('true_distance')[
+        'estimated_distance'].mean().plot(label='NLOS')
+    plt.rc('axes', axisbelow=True)
+    plt.xlabel('True distance (m)')
+    plt.ylabel('Avg. estimated distance (m)')
+    plt.xticks(range(1, 12, 2))
+    plt.yticks(range(1, 12, 2))
+    plt.grid(alpha=0.5)
+    plt.legend()
+    plt.show()
+
+
+def dubai_data(filename):
+    df = pd.read_csv(filename)
+    df = pd.melt(df, id_vars=['timestamp', 'longitude', 'latitude'], value_vars=['6', '2', '8', '3', '26', '15', '12',
+                                                                                 '5', '13', '27', '25', '22'], var_name='sensor_id', value_name='rssi')
+    df['mac'] = '85362b02a0d505c7a3a9aca24e9e480778082adb242ff6dfb49b6acc62375cbb'
+    df.to_json('dubai_data.json', orient='records')
 
 # Localization error experiment: tiny, george, samsung, nikos
 # Location 1: middle of corridor (1.0, 7.0), 4 Oct 2019 16:32 - 16:42
@@ -190,3 +243,21 @@ def rssi_threshold(filename):
 # phone: samsung, tiny, lg
 # start: 11 Oct 2019 13:38
 # end: 11 Oct 2019 13:50
+
+# Distance estimation:
+# phones: samsung, george, nikos, tiny, lg
+# aps: 43, 21, 39, 9, 19
+# DLOS:
+# 1m: 16 Oct 2019 13:38:00 - 13:48:00
+# 3m: 16 Oct 2019 13:48:10 - 13:58:00
+# 5m: 16 Oct 2019 13:58:40 - 14:08:00
+# 7m: 16 Oct 2019 14:08:10 - 14:18:00
+# 9m: 16 Oct 2019 14:18:10 - 14:28:00
+# 11m: 16 Oct 2019 14:28:10 - 14:38:00
+# NLOS:
+# 1m: 16 Oct 2019 14:52:00 - 15:02:00
+# 3m: 16 Oct 2019 15:02:10 - 15:12:00
+# 5m: 16 Oct 2019 15:12:10 - 15:22:00
+# 7m: 16 Oct 2019 15:22:10 - 15:32:00
+# 9m: 16 Oct 2019 15:32:10 - 15:42:00
+# 11m: 16 Oct 2019 15:42:10 - 15:52:00

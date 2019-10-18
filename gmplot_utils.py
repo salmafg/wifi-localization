@@ -13,8 +13,9 @@ def main():
     if len(sys.argv) == 3:
         plot_point()
     # plot_building()
-    plot_corridor()
-    # plot_room()
+    # plot_corridor()
+    plot_room(['00.11.065', '00.11.062', '00.11.059', '00.11.056', '00.11.055',
+               '00.11.054', '00.11.053', '00.11.051', 'the corridor'])
 
 
 def plot_point():
@@ -39,12 +40,13 @@ def plot_corridor():
     GMAP.draw('./map.html')
 
 
-def plot_room():
-    room = next(d for (index, d) in enumerate(
-        MAP) if d['properties']['ref'] == "00.11.051")['geometry']['coordinates']
-    lats = [lat for (lng, lat) in room]
-    lngs = [lng for (lng, lat) in room]
-    GMAP.polygon(lats, lngs, color='cornflowerblue')
+def plot_room(room_nums):
+    for r in room_nums:
+        room = next(d for (index, d) in enumerate(
+            MAP) if d['properties']['ref'] == r)['geometry']['coordinates']
+        lats = [lat+0.00003 for (lng, lat) in room]
+        lngs = [lng+0.00004 for (lng, lat) in room]
+        GMAP.polygon(lats, lngs, color='cornflowerblue')
     GMAP.draw('./map.html')
 
 

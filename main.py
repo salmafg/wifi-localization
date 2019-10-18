@@ -19,7 +19,7 @@ from config import *
 from draw import draw
 from fit_data import *
 from kalman_filter import KalmanFilter
-# from mqtt import publisher, subscriber
+from mqtt import subscriber
 from nls import nls
 from path_loss import log
 from trilateration import trilaterate
@@ -45,14 +45,14 @@ with open('data/usernames.csv', 'r') as f:
     usernames = flatten(list(reader))
 
 
-def run(mode, data=None, model=None, record=False, broadcast=False, polygons=True, project=True, evaluate=[]):
+def run(mode, data=None, model=None, record=False, broadcast=False, polygons=False, project=True, evaluate=[]):
     '''
     Runs localization for multiple mac devices
     '''
     global usernames
     global window_start
     dict_of_mac_rss = {}
-    timestamp = datetime.now().strftime('%d %b %H:%M:%S')
+    timestamp = datetime.now()
 
     if mode == 'live':
         data = get_live_data()
@@ -116,7 +116,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 
     elif mode == 'replay':
         timestamp = datetime.fromtimestamp(
-            window_start).strftime('%d %b %H:%M:%S')
+            window_start)
         for mac, user in dict_of_macs.items():
             dict_of_rss = {}
             for ap in TRILATERATION['aps']:
@@ -124,7 +124,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 dict_of_rss[ap['id']] = round(rss)
             if dict_of_rss:
                 dict_of_mac_rss[mac] = dict_of_rss
-        window_start += TRILATERATION['window_size']
+        window_start += TRILATERATION['stride_size']
 
     else:
         raise ValueError('invalid run mode `%s` ' % mode)
@@ -141,6 +141,11 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 r[ap] = estimated_distance
                 print('The estimated distance of %s from AP %d of RSS %d is %f' %
                       (user, ap, rss, estimated_distance))
+
+                # print(evaluate) # distance estimation
+                # with open(evaluate[0], 'a') as csv_file:
+                #     writer = csv.writer(csv_file)
+                #     writer.writerow([user, ap, rss, evaluate[1], round(estimated_distance, 3)])
 
         # Points dictionary
         p = {}
@@ -169,18 +174,32 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 
             # Compute uncertainty
             uncertainty = min(r.values())
-            if user in rel_hist.keys():
-                d_1 = distance(localization, rel_hist[user][len(rel_hist[user])-1])
-                if d_1 <= TRILATERATION['default_uncertainty']:
-                    uncertainty = max(min(r.values()), d_1)
+            if uncertainty > TRILATERATION['certainty_threshold'] and user in rel_hist.keys():
+                delta_t_1 = timestamp - \
+                    rel_hist[user][len(rel_hist[user])-1][1]
+                d_1 = distance(
+                    localization, rel_hist[user][len(rel_hist[user])-1][0])
+                v_1 = d_1 / delta_t_1.total_seconds()
+                print('v_1:', v_1)
+                if v_1 <= TRILATERATION['velocity_threshold']:
+                    # Distance between current and previous localization is small enough
+                    uncertainty = max(uncertainty, d_1)
+
+                # If distance was too large and deeper history exists
                 elif len(rel_hist[user]) >= 2:
+                    delta_t_2 = timestamp - \
+                        rel_hist[user][len(rel_hist[user])-2][1]
                     d_2 = distance(
-                        localization, rel_hist[user][len(rel_hist[user])-2])
-                    if d_2 <= TRILATERATION['default_uncertainty']:
-                        uncertainty = max(min(r.values()), d_2)
+                        localization, rel_hist[user][len(rel_hist[user])-2][0])
+                    v_2 = d_2 / delta_t_2.total_seconds()
+                    print('v_2:', v_2)
+                    if v_2 <= TRILATERATION['velocity_threshold']:
+                        # Distance from deeper history was small enough (_1 was an anomaly)
+                        uncertainty = max(uncertainty, d_2)
                     else:
-                        uncertainty = max(min(r.values()), d_1)
-                uncertainty = round(uncertainty, 3)
+                        # Take max of current and previous because previous is more relevant than _2
+                        uncertainty = max(uncertainty, d_1)
+            uncertainty = round(uncertainty, 3)
             print('Uncertainty: %.1fm' % round(uncertainty, 1))
 
             # Draw
@@ -197,29 +216,36 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
 
             # Move invalid point inside building to a valid location
             room = get_room_by_physical_location(lat, lng)
-            # if polygons and room is None:
-            closest_polygon, closest_room = get_closest_polygon(lng, lat)
-            p1, _ = nearest_points(closest_polygon, Point(lng, lat))
-            p1_rel_x = (p1.x - GEO['origin'][1]) / GEO['oneMeterLng']
-            p1_rel_y = (p1.y - GEO['origin'][0]) / GEO['oneMeterLat']
-            corrected_rel_loc = rotate(
-                (p1_rel_x, p1_rel_y), -GEO['deviation'])
-            d = (Point(corrected_rel_loc)).distance(Point(localization))
-            lng, lat = p1.x, p1.y
-            print(evaluate)
-            with open(evaluate[0], 'a') as csv_file:
-                writer = csv.writer(csv_file)
-                # writer.writerow([user] + evaluate[2:len(evaluate)] +
-                #                 list(localization) + list(corrected_rel_loc) +
-                #                 [evaluate[1], room, closest_room, uncertainty])
-                # writer.writerow([user, evaluate[1]]+
-                # [len([i for i in dict_of_rss.values() if i > TRILATERATION['rss_threshold']])]+
-                # evaluate[2:]+list(localization) + list(corrected_rel_loc))  # thres
-                writer.writerow([user] + evaluate[1:]+
-                list(localization) + list(corrected_rel_loc))  # pof
-            csv_file.close()
-            room = closest_room
-            print('...point was moved %.3fm' % d)
+            if polygons and room is None:
+                closest_polygon, closest_room = get_closest_polygon(lng, lat)
+                p1, _ = nearest_points(closest_polygon, Point(lng, lat))
+                p1_rel_x = (p1.x - GEO['origin'][1]) / GEO['oneMeterLng']
+                p1_rel_y = (p1.y - GEO['origin'][0]) / GEO['oneMeterLat']
+                corrected_rel_loc = rotate(
+                    (p1_rel_x, p1_rel_y), -GEO['deviation'])
+                d = (Point(corrected_rel_loc)).distance(Point(localization))
+                lng, lat = p1.x, p1.y
+                room = closest_room
+                print('...point was moved %.3fm' % d)
+
+            # if evaluate:
+            #     print(evaluate)
+            #     with open(evaluate[0], 'a') as csv_file:
+            #         writer = csv.writer(csv_file)
+                    # writer.writerow([user] + evaluate[2:len(evaluate)] +
+                    #                 list(localization) + list(corrected_rel_loc) +
+                    #                 [evaluate[1], room, closest_room, uncertainty])
+                    # writer.writerow([user, evaluate[1]]+
+                    # [len([i for i in dict_of_rss.values() if i > TRILATERATION['rss_threshold']])]+
+                    # evaluate[2:]+list(localization) + list(corrected_rel_loc))  # thres
+                    # writer.writerow([user] + evaluate[1:]+
+                    # list(localization) + list(corrected_rel_loc)+ [uncertainty])  # pof
+                    # truth_local = next(
+                    #     item for item in data if item['timestamp'] >= timestamp.timestamp() and item['timestamp'] <= timestamp.timestamp()+TRILATERATION['window_size'])
+                    # rel_x = (truth_local['longitude'] - GEO['origin'][1]) / GEO['oneMeterLng']
+                    # rel_y = (truth_local['latitude'] - GEO['origin'][0]) / GEO['oneMeterLat']
+                    # writer.writerow([rel_x, rel_y]+list(localization)+[distance((rel_x, rel_y), localization)])
+                # csv_file.close()
 
             # Machine learning prediction
             if model is not None:
@@ -243,14 +269,14 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                 list(dict_of_macs.keys()).index(mac)]
             if mode == 'replay':
                 print('>> %s was observed in %s on %s' %
-                      (user, room, timestamp))
+                      (user, room, timestamp.strftime('%d %b %H:%M:%S')))
             else:
                 print('>> %s was just observed in %s' %
                       (user, room))
             print('Physical location:', (lat, lng))
 
             # Write results to history
-            rel_hist.setdefault(user, []).append(localization)
+            rel_hist.setdefault(user, []).append((localization, timestamp))
             sem_hist.setdefault(user, []).append(room)
 
             # Write to file
@@ -275,7 +301,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Tru
                     'lat': lat,
                     'lng': lng,
                     'radius': str(uncertainty),
-                    'timestamp': timestamp
+                    'timestamp': timestamp.strftime('%d %b %H:%M:%S')
                 }
                 db.child(FIREBASE['table']).child(mac).set(data)
                 # db.child(FIREBASE['table']).push(data)
@@ -320,28 +346,31 @@ def main():
 
     # Mode 1: Trilateration in real-time
     # while True:
-    #     run(mode='live', record=False, polygons=True, project=True)
+    #     run(mode='mqtt', record=False, polygons=True, project=True)
 
     # Mode 2: Replay historical data and parse observations to json
-    # t = closest_access_points((0.875, 15.0))
+    # t = closest_access_points((1, 7.0))
     # print(t)
-    # x = 29 - len(TRILATERATION['aps'])
+    # x = 28 - len(TRILATERATION['aps'])
     # print('x =', len(TRILATERATION['aps']))
-    # eval.point_of_failure("data/eval/pof.csv")
+    eval.point_of_failure("data/eval/pof/pof_1.csv")
+    # print(centroid())
     # plt.figure()
     # eval.point_of_failure("data/eval/pof/pof_2.csv")
     # plt.show()
-    # eval.eval_uncertainty("data/eval/localization_1.csv")
+    # eval.uncertainty("data/eval/uncertainty2.csv")
 
-    # eval.plot_localization_error("data/eval/trilat_only.csv")
-    # eval.plot_localization_error("data/eval/nls_trilat.csv")
-    # eval.plot_localization_error("data/eval/wnls_dist_trilat.csv")
-    # eval.plot_localization_error("data/eval/wnls_var_trilat.csv")
-    # eval.plot_localization_error("data/eval/nls_init_0.csv")
-    # eval.plot_localization_error("data/eval/wnls_dist_0.csv")
-    # eval.plot_localization_error("data/eval/wnls_var_0.csv")
+    # eval.localization_error("data/eval/localization/trilat_only.csv")
+    # eval.localization_error("data/eval/localization/nls_trilat.csv")
+    # eval.localization_error("data/eval/localization/wnls_dist_trilat.csv")
+    # eval.localization_error("data/eval/localization/wnls_var_trilat.csv")
+    # eval.localization_error("data/eval/localization/nls_init_0.csv")
+    # eval.localization_error("data/eval/localization/wnls_dist_0.csv")
+    # eval.localization_error("data/eval/localization/wnls_var_0.csv")
 
     # eval.rssi_threshold("data/eval/threshold.csv")
+    # eval.localization_error('dubai_local_70.csv')
+    # eval.distance_estimation('data/eval/distance/dlos/curve2.csv', 'data/eval/distance/nlos/curve2.csv')
 
     # data = get_hist_data()
     # print('Data retrieved.')
@@ -350,22 +379,25 @@ def main():
 
     # with open('outfile', 'rb') as f:
     #     data = pickle.load(f)
-    # global usernames
-    # for r in data:
-    #     if r['payload']['mac'] not in dict_of_macs:
-    #         if usernames:
-    #             random.shuffle(usernames)
-    #             username = usernames.pop()
-    #         else:
-    #             username = 'user'+''.join(random.choices(string.digits, k=3))
-    #         dict_of_macs[r['payload']['mac']] = username
-        # window_end = convert_date_to_secs(TRILATERATION['end'])
-        # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-        #     run('replay', data, project=True, polygons=True,
-        #         #  [-85, 80, -75, -70, -65, -60, -55]
-        #         # evaluate=['data/eval/threshold.csv', -45, 0.875, 15.0])
-        #         evaluate=['data/eval/pof/pof_2_corrected.csv', 3, round(t[0][1], 2), 0.875, 15.0])
-    #     # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 1, 1.0, 7.0])
+    #     print(data)
+    # # global usernames
+    # # for r in data:
+    # #     if r['payload']['mac'] not in dict_of_macs:
+    # #         if usernames:
+    # #             random.shuffle(usernames)
+    # #             username = usernames.pop()
+    # #         else:
+    # #             username = 'user'+''.join(random.choices(string.digits, k=3))
+    # #         dict_of_macs[r['payload']['mac']] = username
+    # window_end = convert_date_to_secs(TRILATERATION['end'])
+    # for _ in range(window_start, window_end, TRILATERATION['window_size']):
+    #     run('replay', data, project=False, polygons=True)
+    #     evaluate=['data/eval/distance/nlos/curve2.csv', 11])
+        #     evaluate=['data/eval/uncertainty_velocity.csv', 0.875, 15.0])
+    #         #  [-85, 80, -75, -70, -65, -60, -55]
+    #         # evaluate=['data/eval/threshold.csv', -45, 0.875, 15.0])
+    #         evaluate=['data/eval/pof/pof_2_corrected.csv', 3, round(t[0][1], 2), 0.875, 15.0])
+        # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 1, 1.0, 7.0])
     #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.053', 2, -2.0, 5.1])
     #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.056', 3, 3.6, 9.5])
     #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.065', 4, -2.6, 27.0])
