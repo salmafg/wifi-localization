@@ -1,6 +1,7 @@
 import csv
 from itertools import cycle
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from imblearn.combine import SMOTEENN, SMOTETomek
@@ -20,6 +21,15 @@ from sklearn.utils import class_weight
 from config import ML, STATES
 from utils import plot_confusion_matrix
 
+matplotlib.rcParams.update({
+    'font.size': 20,
+    'font.family': 'serif',
+    'xtick.labelsize': 'x-small',
+    'ytick.labelsize': 'x-small',
+    'legend.fontsize': 'x-small',
+    'figure.autolayout': True
+})
+
 NORMALIZER = None
 SCALER = None
 
@@ -29,7 +39,8 @@ def train(model_type):
     Supervised HMM
     """
     global NORMALIZER, SCALER
-    X, y = read_csv()
+    X, y = parse_csv('data/ml/samsung.csv')
+    # X_test, y_test = parse_csv('data/ml/george.csv')
     if model_type == 'svm':
         SCALER = StandardScaler().fit(X)
         X = SCALER.transform(X)
@@ -40,11 +51,11 @@ def train(model_type):
     # print(X)
 
     # Plot class weights
-    counts = []
-    for i in np.unique(y):
-        counts.append(list(y).count(i))
-    print(counts)
-    plt.bar(STATES, counts, width=0.35)
+    # counts = []
+    # for i in np.unique(y):
+    #     counts.append(list(y).count(i))
+    # print(counts)
+    # plt.bar(STATES, counts, width=0.35)
     # plt.show()
 
     # Compute class weights
@@ -56,35 +67,46 @@ def train(model_type):
     # X, y = under_sample.fit_sample(X, y)
     # comb_sample = SMOTEENN(random_state=0)
     # X_sm, y_sm = comb_sample.fit_sample(X, y)
-    smote_tomek = SMOTETomek(random_state=0)
-    X, y = smote_tomek.fit_resample(X, y)
-    cw = list(class_weight.compute_class_weight(
-        'balanced', np.unique(y), y))
-    cw = dict(enumerate(cw))
+    # smote_tomek = SMOTETomek(random_state=0)
+    # X, y = smote_tomek.fit_resample(X, y)
+    # cw = list(class_weight.compute_class_weight(
+    #     'balanced', np.unique(y), y))
+    # cw = dict(enumerate(cw))
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5)
-
-    counts = []
-    for i in np.unique(y):
-        counts.append(list(y).count(i))
-    print(counts)
-    plt.bar(STATES, counts, width=0.35)
+    # X_train = X
+    # y_train = y
+    # counts = []
+    # for i in np.unique(y):
+    #     counts.append(list(y).count(i))
+    # print(counts)
+    # plt.bar(STATES, counts, width=0.35)
     # plt.show()
 
-    if model_type == 'rf':
-        classifier = RandomForestClassifier(n_estimators=20)
-    elif model_type == 'knn':
-        classifier = KNeighborsClassifier(n_neighbors=3, weights='distance')
-    elif model_type == 'svm':
-        classifier = SVC(gamma='auto', kernel='poly', probability=True)
-    elif model_type == 'nb':
-        classifier = GaussianNB()
-    print('CV Score:', cross_val_score(
-        classifier, X, y, scoring='recall_macro', cv=5))
-    classifier.fit(X_train, y_train)
-    print('Score:', classifier.score(X_test, y_test))
-    plot_confusion_matrix(y_test, classifier.predict(X_test))
-    return classifier
+    # if model_type == 'rf':
+    #     classifier = RandomForestClassifier(n_estimators=20)
+    # elif model_type == 'knn':
+    #     classifier = KNeighborsClassifier(n_neighbors=3, weights='distance')
+    # elif model_type == 'svm':
+    #     classifier = SVC(gamma='auto', kernel='poly', probability=True)
+    # elif model_type == 'nb':
+    #     classifier = GaussianNB()
+    errors = []
+    for k in range(1, 11):
+        classifier = KNeighborsClassifier(n_neighbors=k, weights='distance')
+        scores = cross_val_score(classifier, X, y, cv=5)
+        print('CV Scores:', scores)
+        print('Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+        classifier.fit(X_train, y_train)
+        print('Score:', classifier.score(X_test, y_test))
+        errors.append(scores.mean())
+        # plot_confusion_matrix(y_test, classifier.predict(X_test), normalize=True)
+    plt.figure(figsize=(12.0, 8.0))
+    plt.plot(range(1, 11), errors, '-s', ms=10)
+    plt.xlabel('Number of neighbors (k)')
+    plt.ylabel('Average accuracy')
+    plt.show()
+    return errors
 
 
 def predict_room(model, sample):
@@ -101,10 +123,10 @@ def predict_room(model, sample):
     return pred, probs[pred]
 
 
-def read_csv():
+def parse_csv(filename):
     X = []
     y = []
-    with open(ML['data'], 'r') as csvFile:
+    with open(filename, 'r') as csvFile:
         reader = csv.reader(csvFile)
         for row in reader:
             X.append(list(map(int, row[1: len(row)])))
@@ -115,7 +137,7 @@ def read_csv():
 
 def roc():
     global NORMALIZER, SCALER
-    X, y = read_csv()
+    X, y = parse_csv('data/ml/samsung.csv')
     NORMALIZER = Normalizer().fit(X)
     X = NORMALIZER.transform(X)
 
@@ -132,7 +154,9 @@ def roc():
     print(y_test.shape)
     classifier = OneVsRestClassifier(
         SVC(gamma='auto', kernel='poly', probability=True))
+        # KNeighborsClassifier(n_neighbors=3))
     y_score = classifier.fit(X_train, y_train).decision_function(X_test)
+    # y_score = classifier.fit(X_train, y_train).predict_proba(X_test)
     # y_pred = np.argmax(y_score, axis=1)
     # y_true = [np.where(r==1)[0][0] for r in y_test]
     # plot_confusion_matrix(y_true, y_pred)
