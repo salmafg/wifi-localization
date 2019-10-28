@@ -5,8 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.optimize import curve_fit
 from sklearn.metrics import accuracy_score
 
+from fit_data import quad_func
 from utils import closest_access_points, distance
 
 matplotlib.rcParams.update({
@@ -55,6 +57,7 @@ def localization_error(filename):
     #       min(df['Error in meters with polygons']))
     # print('Max. error (m) with polygons: %.3fm' %
     #       max(df['Error in meters with polygons']))
+    plt.figure(figsize=(12.0, 8.0))
     sns.boxplot(x='Location', y='Error in meters no polygons',
                 data=df, showfliers=True, color="skyblue")
     plt.ylabel('Error (m)')
@@ -73,7 +76,7 @@ def localization_error(filename):
     # plt.ylabel('CDF')
     # plt.xlim(0, 18)
     # plt.legend()
-    plt.figure()
+    plt.figure(figsize=(12.0, 8.0))
     plt.hist(df['Error in meters no polygons'][df['Phone'] == 'samsung'],
              histtype='step', cumulative=True, density=True, bins=1000, label='Phone A')
     plt.hist(df['Error in meters no polygons'][df['Phone'] == 'tiny phone'],
@@ -89,11 +92,11 @@ def localization_error(filename):
     plt.xlim(0, 7.6)
     plt.legend(loc='lower right')
     plt.show()
-    # before = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
-    #                         df['No polygons'][df['No polygons'] == 'unknown'])
-    # after = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
-    #                        df['Polygons'][df['No polygons'] == 'unknown'])
-    # print('%.1f%% improvement' % (100*after-100*before))
+    before = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
+                            df['No polygons'][df['No polygons'] == 'unknown'])
+    after = accuracy_score(df['true_polygon'][df['No polygons'] == 'unknown'],
+                           df['Polygons'][df['No polygons'] == 'unknown'])
+    print('%.1f%% improvement' % (100*after-100*before))
 
 
 def point_of_failure(filename):
@@ -110,7 +113,8 @@ def point_of_failure(filename):
     # print(df)
     sns.scatterplot(x='obs_x', y='obs_y', sizes=2,
                     hue_norm=(3, 29), hue='Connected', data=df)
-    plt.scatter(df['true_x'][0], df['true_y'][0], c='black', marker='x', alpha=1)
+    plt.scatter(df['true_x'][0], df['true_y'][0],
+                c='black', marker='x', alpha=1)
     plt.xlabel('Predicted x location')
     plt.ylabel('Predicted y location')
     # plt.scatter(df['obs_x'], df['obs_y'], label=df['Connected'])
@@ -146,48 +150,70 @@ def uncertainty(filename):
     df['Location'] = 1
     print(df.head())
     print('Mean deviation in meters: %.2fm' %
-          mean(df['Deviation from radius']))
+          mean(df['Deviation from radius'][df['Threshold'] == -85]))
+    print('Mean deviation in meters: %.2fm' %
+          median(df['Deviation from radius'][(df['Threshold'] == -85) & (df['Deviation from radius'] >= 0)]))
+    print('Median deviation in meters: %.2fm' %
+          median(df['Deviation from radius'][df['Threshold'] == -85]))
     print('Min. deviation in meters: %.2fm' % min(df['Deviation from radius']))
     print('Max. deviation in meters: %.2fm' % max(df['Deviation from radius']))
-    sns.boxplot(x='Location', y='Deviation from radius',
-                data=df, showfliers=True)
-    plt.ylabel('Deviation from uncertainty radius (m)')
-    plt.figure()
-    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'samsung'],
-                label='samsung', cumulative=True)
+    # sns.boxplot(x='Location', y='Deviation from radius',
+    #             data=df, showfliers=True)
+    # plt.ylabel('Deviation from uncertainty radius (m)')
+    plt.figure(figsize=(12.0, 8.0))
+    sns.kdeplot(df['Deviation from radius'][(df['Threshold'] == -85) & (df['Phone'] == 'samsung')],
+                label='Phone A', cumulative=True)
+    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'tiny'],
+                label='Phone B', cumulative=True)
     sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'george'],
-                label='george', cumulative=True)
-    sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'tiny phone'],
-                label='tiny phone', cumulative=True)
+                label='Phone C', cumulative=True)
     sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'nikos'],
-                label='nikos', cumulative=True)
+                label='Phone D', cumulative=True)
     sns.kdeplot(df['Deviation from radius'][df['Phone'] == 'lg'],
-                label='lg', cumulative=True)
-    plt.xlabel('Deviation from uncertainty radius (m)')
+                label='Phone E', cumulative=True)
+    plt.xlabel('Deviation from Uncertainty Perimeter (m)')
     plt.ylabel('CDF')
-    plt.xlim(-20, 20)
+    plt.xlim(-10, 10)
     plt.legend()
     plt.show()
 
 
 def rssi_threshold(filename):
+
     # RSSI threshold experiment
     df = pd.read_csv(filename)
     df['Error in meters'] = df.apply(lambda row: distance(
         (row['true_x'], row['true_y']), (row['obs_x'], row['obs_y'])), axis=1)
     # print(df)
-    sns.boxplot(x='Threshold', y='Error in meters', data=df)
-    # plt.figure()
-    # for i in range(0, 29):
-    #     sns.kdeplot(df['Error in meters'][df['Disconnected'] == i],
-    #                 label=32-i, cumulative=True)
-    # plt.xlabel('Error (m)')
-    # plt.ylabel('CDF')
+    location_filter = (df[df.Location == 1])
+    thresholds = location_filter.groupby('Threshold').size()
+    _, ax = plt.subplots()
+    ax.set_xlabel('RSSI Threshold (dB)')
+    ax.set_ylabel('Localization Frequency')
+    for i in range(1, 6, 1):
+        ax.plot((df[df.Location == i]).groupby(
+            'Threshold').size(), label=i, linestyle='--')
+    # plt.legend()
+    # ax2 = ax.twinx()
+    # ax2.plot(location_filter.groupby('Threshold')
+    #          ['Error in meters'].agg(['mean']), c='g')
+    # ax2.set_ylabel('Error (m)', c='g')
+    # sns.boxplot(x='Threshold', y='Error in meters', hue='Location', data=df)
+    plt.figure()
+    for i in range(-85, -40, 10):
+        # sns.kdeplot(df['Error in meters'][df['Threshold'] == i],
+        #             label=i, cumulative=True)
+        plt.hist(df['Error in meters'][df['Threshold'] == i],
+                 histtype = 'step', cumulative = True, density = True, bins = 1000, label = i)
+    plt.xlabel('Error (m)')
+    plt.ylabel('CDF')
+    plt.xlim(0, 6)
+    plt.legend(loc = 'lower right')
     plt.show()
 
 
 def distance_estimation(dlos, nlos):
-    ddf = pd.read_csv(dlos)
+    ddf=pd.read_csv(dlos)
     # ddf = ddf[(ddf['phone'] == 'lg') | (ddf['phone'] == 'nikos')]
     ddf.groupby('true_distance')[
         'estimated_distance'].mean().plot(label='DLOS')
@@ -222,7 +248,7 @@ def dubai_data(filename):
 # Location 5.2: end of corridor (0.5, 22.5), 7 Oct 2019 14:18:00 - 14:28 #!244,246,314
 # Location 6: room 55 (-2.8, 9.55), 4 Oct 2019 17:27:10 - 17:37
 # Location 7: room 59 (-2.0, 17.0), 4 Oct 2019 17:38:15 - 17:48
-# Location 8: room 62 (3.7, 19.2), 4 Oct 2019 17:49:10 - 17:59
+# Location 8: room 62 (3.7, 19.2), 4 Oct 2019 17:49:10 - 17:59 #!george
 # Location 9: room 51 (-2.4, 1.76), 4 Oct 2019 18:00:10 - 18:10
 # Location 10: beginnning of corridor (0.0, 1.8), 4 Oct 2019 18:11:10 - 18:21
 

@@ -4,6 +4,7 @@ from statistics import mean, median
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 from scipy.optimize import curve_fit
 from sklearn.model_selection import LeaveOneOut
 from sklearn.neighbors.kde import KernelDensity
@@ -13,22 +14,25 @@ from kalman_filter import KalmanFilter
 from utils import convert_date_to_secs, get_rss_fluctuation
 
 matplotlib.rcParams.update({
-    'font.size': 22,
+    'font.size': 20,
     'font.family': 'serif',
     'xtick.labelsize': 'x-small',
     'ytick.labelsize': 'x-small',
-    'legend.fontsize': 'xx-small',
+    'legend.fontsize': 'x-small',
     'figure.autolayout': True
 })
 
 
-def log_func(rss, pl0, gamma):
+def log_dist_func(rss, pl0, gamma):
     """
     Log distance function
     """
     logdd0 = (np.abs(rss) - abs(pl0)) / (10 * gamma)
     d = np.power(10, logdd0)
     return d
+
+def log_func(x, a, b, c):
+    return a * np.exp(-b * x) + c
 
 
 def lin_func(x, b, c):
@@ -50,6 +54,16 @@ def poly_func(x, a, b, c, d):
     Polynomial function
     """
     return np.multiply(d, np.power(x, 3)) + np.multiply(a, np.power(x, 2)) + np.multiply(b, x) + c
+
+
+def plot_rssi_dist():
+    x = np.linspace(-90, -10, 1000)
+    y = scipy.stats.norm.pdf(x, -50, 8)
+    plt.figure(figsize=(12, 8))
+    plt.plot(x, y, color='C0')
+    plt.xlabel('RSSI (dB)')
+    plt.ylabel('Probability density')
+    plt.show()
 
 
 def fit():
@@ -117,11 +131,11 @@ def fit():
 
     # Fit curve
     x, y = zip(*sorted(zip(avgs, range(0, len(avgs)))))
-    popt, _ = curve_fit(log_func, x, y)
+    popt, _ = curve_fit(log_dist_func, x, y)
 
     # Plot curve
     print(avgs)
-    plt.plot(x, log_func(x, *popt), 'g--',
+    plt.plot(x, log_dist_func(x, *popt), 'g--',
              label='fit: RSSI=%5.3f, gamma=%5.3f' % tuple(popt))
     plt.xlabel('RSSI (dB)')
     plt.ylabel('Distance (m)')
@@ -234,13 +248,13 @@ def fit_multiple():
             plt.plot(avgs, distances, label='averaged RSSI')
 
             # Fit curve
-            popt, _ = curve_fit(log_func, avgs, distances)
+            popt, _ = curve_fit(log_dist_func, avgs, distances)
 
             # Plot curve
             avgs.sort()
             print('RSSI averages for ap %s and device %s: %s' %
                   (ap, TRILATERATION['macs'][mac], avgs))
-            plt.plot(avgs, log_func(avgs, *popt), 'g--',
+            plt.plot(avgs, log_dist_func(avgs, *popt), 'g--',
                      label='fit: $d_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
             plt.xlabel('RSSI (dB)')
             plt.ylabel('Distance (m)')
@@ -253,13 +267,14 @@ def fit_multiple():
     print(np.array(all_avgs))
     for i in np.array(all_avgs).T:
         avged_avgs.append(mean(i))
+    plt.figure(figsize=(12.0, 8.0))
     plt.plot(avged_avgs, distances, label='mean RSSI')
     x, y = zip(*sorted(zip(avged_avgs, distances)))
-    popt, _ = curve_fit(log_func, x, y)
+    popt, _ = curve_fit(log_dist_func, x, y)
 
     # Plot curve
     print('Collective RSSI averages: %s' % avged_avgs)
-    plt.plot(x, log_func(x, *popt), 'g--',
+    plt.plot(x, log_dist_func(x, *popt), 'g--',
              label='fit: $d_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
     plt.xlabel('RSSI (dB)')
     plt.ylabel('Distance (m)')
@@ -316,12 +331,12 @@ def fit_all():
                 bandwidth=bandwidth, kernel='gaussian').fit(X[:, None])
             logprob = kde.score_samples(X_d[:, None])
             plt.fill_between(X_d, np.exp(logprob), alpha=0.2,
-                             label=mac)
+                             label=TRILATERATION['macs'][mac])
             plt.xlabel('RSSI (dB)')
             plt.ylabel('Probability density')
             plt.legend()
-            plt.title('Kernel estimation for ap %d with bandwidth=%.2f' %
-                      (ap, bandwidth))
+            # plt.title('Kernel estimation for ap %d with bandwidth=%.2f' %
+                    #   (ap, bandwidth))
     plt.show()
 
     # Plotting the histograms of the different aps on every phone
@@ -365,12 +380,12 @@ def fit_all():
                 bandwidth=bandwidth, kernel='gaussian').fit(X[:, None])
             logprob = kde.score_samples(X_d[:, None])
             plt.fill_between(X_d, np.exp(logprob), alpha=0.2,
-                             label=ap)
+                            label='AP ' + str(ap))
             plt.xlabel('RSSI (dB)')
             plt.ylabel('Probability density')
             plt.legend()
-            plt.title('Kernel estimation for device %s with bandwidth=%.2f' %
-                      (mac, bandwidth))
+            # plt.title('Kernel estimation for device %s with bandwidth=%.2f' %
+            #           (mac, bandwidth))
     plt.show()
 
 
@@ -413,9 +428,9 @@ def heterogeneity_scatter():
             colors = ("red", "orange", "green", "blue", "indigo", "violet")
             for x, y, color, group in zip(x1_chosen, x2_chosen, colors, distances):
                 plt.scatter(x, y, c=color, label=group, alpha=0.5)
-            plt.title('Scatter plot for ap %i' % ap)
-            plt.xlabel(mac1)
-            plt.ylabel(mac2)
+            # plt.title('Scatter plot for ap %i' % ap)
+            plt.xlabel('RSSI from %s (dB)' % TRILATERATION['macs'][mac1])
+            plt.ylabel('RSSI from %s (dB)' % TRILATERATION['macs'][mac2])
             plt.xlim(-75, -25)
             plt.ylim(-75, -25)
             plt.legend()

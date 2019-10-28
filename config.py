@@ -1,12 +1,12 @@
 TRILATERATION = {
 ***REMOVED***
     'macs': {
-        ***REMOVED***
-        # 'e8:93:09:1d:b6:08': 'tiny phone', # tiny
+        # '***REMOVED***': 'Phone A', #samsung
+        # 'e8:93:09:1d:b6:08': 'Phone B', # tiny
         ***REMOVED***
         # ***REMOVED***: 'Phone D', #nikos
         # ***REMOVED***
-        ***REMOVED***
+        # ***REMOVED***: 'Phone C', #george
         # ***REMOVED***
         # ***REMOVED***
         '9ad190f7c15b7032b3e63ac8a63e55d661f442977bb70bd7be2518db60fb420a': 'samsung',
@@ -19,15 +19,16 @@ TRILATERATION = {
     },
     # 'start': '16 Sep 2019 17:35:00',
     # 'end': '16 Sep 2019 17:45:00',
-    # 'start': '11 Oct 2019 13:38:10',
-    # 'end': '11 Oct 2019 13:50:00',
-    'start': '16 Oct 2019 15:42:10',
-    'end': '16 Oct 2019 15:52:00',
-    'rss_threshold': -100,
-    'window_size': 1,
-    'stride_size': 1,
-    'certainty_threshold': 1,
-    'velocity_threshold': 1,
+    'start': '11 Oct 2019 13:38',
+    'end': '11 Oct 2019 13:50',
+    # 'start': '6 Sep 2019 13:49',
+    # 'end': '6 Sep 2019 15:02',
+    'rss_threshold': -85,
+    'window_size': 5,
+    'stride_size': 5,
+    'minimum_uncertainty': 1,
+    'certainty_threshold': 1.5,
+    'velocity_threshold': 0,
 
     # corridor
     # 'aps': [
@@ -223,7 +224,8 @@ TRILATERATION = {
         },
         {
             'id': 30,
-            'xy': (-4.25, 27)
+            # 'xy': (-4.25, 27)
+            'xy': (-2.4, -0.4)
         },
         {
             'id': 16,
@@ -231,7 +233,8 @@ TRILATERATION = {
         },
         {
             'id': 17,
-            'xy': (-1.2, 26.35)
+            # 'xy': (-1.2, 26.35)
+            'xy': (-4.75, -2.2)
         },
         {
             'id': 18,
@@ -249,17 +252,14 @@ TRILATERATION = {
             'id': 21,
             'xy': (-2.3, 7)
         },
-        # {
-        #     'id': 36,
-        #     'xy': (5.8, 9.35)
-        # },
         {
             'id': 23,
             'xy': (-4.23, 17.4)
         },
         {
             'id': 24,
-            'xy': (-2.2, 29.7)
+            # 'xy': (-2.2, 29.7)
+            'xy': (-1.824, -4.12)
         },
         {
             'id': 40,

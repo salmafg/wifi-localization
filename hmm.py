@@ -15,11 +15,11 @@ from utils import plot_confusion_matrix
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 matplotlib.rcParams.update({
-    'font.size': 22,
+    'font.size': 20,
     'font.family': 'serif',
-    'xtick.labelsize': 'x-small',
-    'ytick.labelsize': 'x-small',
-    'legend.fontsize': 'xx-small',
+    'xtick.labelsize': 'small',
+    'ytick.labelsize': 'small',
+    'legend.fontsize': 'small',
     'figure.autolayout': True
 })
 
@@ -75,7 +75,7 @@ def fit(obs):
     return hmm
 
 
-def train(obs, labels, test_X, test_y):
+def train(obs, labels, test_X, test_y, alg):
     """
     Supervised HMM
     """
@@ -117,12 +117,12 @@ def train(obs, labels, test_X, test_y):
         {0: 0.1, 1: 0.4, 2: 0.1, 3: 0.1, 4: 0.075, 5: 0.075, 6: 0.1, 7: 0.075, 8: 0.5})
     dists = [d0, d1, d2, d3, d4, d5, d6, d7, d8]
     hmm = HiddenMarkovModel.from_matrix(trans_prob, dists, start_prob)
-    hmm.fit(np.atleast_2d(X).T, labels=np.atleast_2d(y).T, algorithm='baum-welch')
-    seq = hmm.predict(z, algorithm='map')
+    # hmm.fit(np.atleast_2d(X).T, labels=np.atleast_2d(y).T, algorithm='baum-welch')
+    seq = hmm.predict(z, algorithm=alg)
     # print(seq)
     print('dataset 1:', hmm.score(X, y))
     print('dataset 2:', hmm.score(z, w))
-    plot(test_X, seq, test_y, len_z, 'map')
+    plot(test_X, seq, test_y, len_z, alg)
     return hmm
 
 
@@ -182,7 +182,7 @@ def plot(obs, preds, truth, len_X, alg):
     X, len_X = tidy_data(obs)
     y, _ = tidy_data(truth)
     obs_labels = [STATES[i] for i in X]
-    pred_labels = [STATES[i] for i in preds]
+    pred_labels = [STATES[i] for i in preds[1:]]
     truth_labels = [STATES[i] for i in y]
     print('Observation score:', accuracy_score(y, X))
     print('Prediction score:', accuracy_score(y, preds))
@@ -197,34 +197,41 @@ def plot(obs, preds, truth, len_X, alg):
         {'col1': range(0, len(obs_labels)), 'col2': obs_labels})
     pred_df = pd.DataFrame(
         {'col1': range(0, len(pred_labels)), 'col2': pred_labels})
+    plt.figure(figsize=(14.0, 8.0))
     sentinel, = plt.plot(
         np.repeat(truth_df.col1.values[0], len(STATES)), STATES)
     sentinel.remove()
     plt.step(truth_df['col1'], truth_df['col2'],
-             label="truths", ms=6, color="g", alpha=0.7)
-    plt.step(obs_df['col1'], obs_df['col2'], '--', label="observations",
+             label="Truth", ms=6, color="g", alpha=0.7)
+    plt.step(obs_df['col1'], obs_df['col2'], '--', label="Localization",
              ms=6, color="tab:blue", alpha=0.7)
     plt.legend(loc='best')
+    plt.xlabel('Sample')
+    plt.ylabel('Room')
     # plt.title(
     #     'Time-series localization data collected walking through TU campus Garching')
-    plt.figure()
+    plt.figure(figsize=(14.0, 8.0))
     sentinel, = plt.plot(
         np.repeat(truth_df.col1.values[0], len(STATES)), STATES)
     sentinel.remove()
     plt.step(truth_df['col1'], truth_df['col2'],
-             label="truths", ms=6, color="g", alpha=0.7)
+             label="Truth", ms=6, color="g", alpha=0.7)
     plt.step(pred_df['col1'], pred_df['col2'], '--',
-             label="predictions", ms=6, color="orange", alpha=0.7)
+             label="HMM", ms=6, color="orange", alpha=0.7)
     plt.legend(loc='best')
-    plt.title('HMM predictions, alg=%s' % alg)
-    plt.figure()
+    plt.xlabel('Sample')
+    plt.ylabel('Room')
+    # plt.title('HMM predictions, alg=%s' % alg)
+    plt.figure(figsize=(14.0, 8.0))
     sentinel, = plt.plot(
         np.repeat(truth_df.col1.values[0], len(STATES)), STATES)
     sentinel.remove()
-    plt.step(obs_df['col1'], obs_df['col2'], '--', label="observations",
+    plt.step(obs_df['col1'], obs_df['col2'], label="Localization",
              ms=6, color="tab:blue", alpha=0.7)
     plt.step(pred_df['col1'], pred_df['col2'], '--',
-             label="predictions", ms=6, color="orange", alpha=0.7)
+             label="HMM", ms=6, color="orange", alpha=0.7)
     plt.legend(loc='best')
-    plt.title('HMM predictions, alg=%s' % alg)
+    plt.xlabel('Sample')
+    plt.ylabel('Room')
+    # plt.title('HMM predictions, alg=%s' % alg)
     plt.show()

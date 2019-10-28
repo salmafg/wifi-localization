@@ -18,7 +18,15 @@ from mi import MAP
 
 dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
-matplotlib.rcParams.update({'font.size': 20})
+
+matplotlib.rcParams.update({
+    'font.size': 20,
+    'font.family': 'serif',
+    'xtick.labelsize': 'xx-small',
+    'ytick.labelsize': 'xx-small',
+    'legend.fontsize': 'xx-small',
+    'figure.autolayout': True
+})
 
 
 def distance(p1, p2):
@@ -53,7 +61,7 @@ def rotate(point, angle):
 
 
 def convert_date_to_secs(date):
-    date = datetime.strptime(date, '%d %b %Y %H:%M:%S')
+    date = datetime.strptime(date, '%d %b %Y %H:%M')
     return int(date.timestamp())
 
 
@@ -294,13 +302,14 @@ def plot_confusion_matrix(y_true, y_pred, title=None, normalize=False, cmap=plt.
     if not title:
         if normalize:
             cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-            title = 'Normalized confusion matrix'
+            # title = 'Normalized confusion matrix'
         else:
             title = 'Confusion matrix, without normalization'
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(12.0, 10.0))
     im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
     ax.figure.colorbar(im, ax=ax)
     classes = np.array(STATES)[unique_labels(y_true, y_pred)]
+    classes[8] = 'corridor'
 
     # We want to show all ticks...
     ax.set(xticks=np.arange(cm.shape[1]),
@@ -309,7 +318,7 @@ def plot_confusion_matrix(y_true, y_pred, title=None, normalize=False, cmap=plt.
            xticklabels=classes, yticklabels=classes,
            ylabel='True label',
            xlabel='Predicted label',
-           title=title,
+        #    title=title,
            ylim=(len(classes)-0.5, -0.5))
 
     # Rotate the tick labels and set their alignment.

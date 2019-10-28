@@ -164,8 +164,9 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
         if len(p3) == 3:
 
             # Trilateration
-            args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
-            estimated_localization = trilaterate(*args)
+            # args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
+            # estimated_localization = trilaterate(*args)
+            estimated_localization = (0, 0)
             print('Trilateration estimate:', estimated_localization)
 
             # Non-linear least squares
@@ -174,7 +175,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
 
             # Compute uncertainty
             uncertainty = min(r.values())
-            if uncertainty > TRILATERATION['certainty_threshold'] and user in rel_hist.keys():
+            if user in rel_hist.keys():
                 delta_t_1 = timestamp - \
                     rel_hist[user][len(rel_hist[user])-1][1]
                 d_1 = distance(
@@ -199,6 +200,8 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
                     else:
                         # Take max of current and previous because previous is more relevant than _2
                         uncertainty = max(uncertainty, d_1)
+            if uncertainty < TRILATERATION['minimum_uncertainty']:
+                uncertainty = TRILATERATION['minimum_uncertainty']
             uncertainty = round(uncertainty, 3)
             print('Uncertainty: %.1fm' % round(uncertainty, 1))
 
@@ -228,16 +231,16 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
                 room = closest_room
                 print('...point was moved %.3fm' % d)
 
-            # if evaluate:
-            #     print(evaluate)
-            #     with open(evaluate[0], 'a') as csv_file:
-            #         writer = csv.writer(csv_file)
+            if evaluate:
+                print(evaluate)
+                with open(evaluate[0], 'a') as csv_file:
+                    writer = csv.writer(csv_file)
                     # writer.writerow([user] + evaluate[2:len(evaluate)] +
                     #                 list(localization) + list(corrected_rel_loc) +
                     #                 [evaluate[1], room, closest_room, uncertainty])
-                    # writer.writerow([user, evaluate[1]]+
-                    # [len([i for i in dict_of_rss.values() if i > TRILATERATION['rss_threshold']])]+
-                    # evaluate[2:]+list(localization) + list(corrected_rel_loc))  # thres
+                    writer.writerow([user]+evaluate[1:3] +
+                                    [len([i for i in dict_of_rss.values() if i > TRILATERATION['rss_threshold']])] +
+                                    evaluate[3:]+list(localization) + list(corrected_rel_loc) + [uncertainty])  # thres
                     # writer.writerow([user] + evaluate[1:]+
                     # list(localization) + list(corrected_rel_loc)+ [uncertainty])  # pof
                     # truth_local = next(
@@ -245,7 +248,7 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
                     # rel_x = (truth_local['longitude'] - GEO['origin'][1]) / GEO['oneMeterLng']
                     # rel_y = (truth_local['latitude'] - GEO['origin'][0]) / GEO['oneMeterLat']
                     # writer.writerow([rel_x, rel_y]+list(localization)+[distance((rel_x, rel_y), localization)])
-                # csv_file.close()
+                csv_file.close()
 
             # Machine learning prediction
             if model is not None:
@@ -334,15 +337,15 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
 
 def main():
 
-    # Train classifier and make predications
+    # # Train classifier and make predications
     # # m = classifier.train('knn')
     # train_x = json.loads(open('data/hist/train_x.json').read())
     # train_y = json.loads(open('data/hist/train_y.json').read())
     # test_x = json.loads(open('data/hist/semantic1.json').read())
     # test_y = json.loads(open('data/hist/truth1.json').read())
-    # # m = hmm.create(obs2) # create or fit then predict
-    # # hmm.predict_all(m, obs1, truth1, 'map')
-    # hmm.train(train_x, train_y, test_x, test_y)
+    # # m = hmm.create(train_x) # create or fit then predict
+    # # hmm.predict_all(m, test_x, test_y, 'map')
+    # hmm.train(train_x, train_y, test_x, test_y, alg='map')
 
     # Mode 1: Trilateration in real-time
     # while True:
@@ -353,12 +356,12 @@ def main():
     # print(t)
     # x = 28 - len(TRILATERATION['aps'])
     # print('x =', len(TRILATERATION['aps']))
-    eval.point_of_failure("data/eval/pof/pof_1.csv")
+    # eval.point_of_failure("data/eval/pof/pof_1.csv")
     # print(centroid())
     # plt.figure()
     # eval.point_of_failure("data/eval/pof/pof_2.csv")
     # plt.show()
-    # eval.uncertainty("data/eval/uncertainty2.csv")
+    # eval.uncertainty("data/eval/threshold/full.csv")
 
     # eval.localization_error("data/eval/localization/trilat_only.csv")
     # eval.localization_error("data/eval/localization/nls_trilat.csv")
@@ -367,8 +370,9 @@ def main():
     # eval.localization_error("data/eval/localization/nls_init_0.csv")
     # eval.localization_error("data/eval/localization/wnls_dist_0.csv")
     # eval.localization_error("data/eval/localization/wnls_var_0.csv")
+    # eval.localization_error("data/eval/threshold/full.csv")
 
-    # eval.rssi_threshold("data/eval/threshold.csv")
+    # eval.rssi_threshold("data/eval/threshold/full.csv")
     # eval.localization_error('dubai_local_70.csv')
     # eval.distance_estimation('data/eval/distance/dlos/curve2.csv', 'data/eval/distance/nlos/curve2.csv')
 
@@ -377,9 +381,8 @@ def main():
     # with open('outfile', 'wb') as f:
     #     pickle.dump(data, f)
 
-    # with open('outfile', 'rb') as f:
-    #     data = pickle.load(f)
-    #     print(data)
+    with open('outfile', 'rb') as f:
+        data = pickle.load(f)
     # # global usernames
     # # for r in data:
     # #     if r['payload']['mac'] not in dict_of_macs:
@@ -389,13 +392,14 @@ def main():
     # #         else:
     # #             username = 'user'+''.join(random.choices(string.digits, k=3))
     # #         dict_of_macs[r['payload']['mac']] = username
-    # window_end = convert_date_to_secs(TRILATERATION['end'])
-    # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data, project=False, polygons=True)
-    #     evaluate=['data/eval/distance/nlos/curve2.csv', 11])
-        #     evaluate=['data/eval/uncertainty_velocity.csv', 0.875, 15.0])
-    #         #  [-85, 80, -75, -70, -65, -60, -55]
-    #         # evaluate=['data/eval/threshold.csv', -45, 0.875, 15.0])
+    window_end = convert_date_to_secs(TRILATERATION['end'])
+    for _ in range(window_start, window_end, TRILATERATION['window_size']):
+        run('replay', data, project=True, polygons=False)
+            #     evaluate=['data/eval/distance/nlos/curve2.csv', 11])
+            #     evaluate=['data/eval/uncertainty_velocity.csv', 0.875, 15.0])
+            #         #  [-85, 80, -75, -70, -65, -60, -55]
+            # evaluate=['data/eval/threshold/full.csv', TRILATERATION['rss_threshold'],
+            #  9, -2.4, 1.76])
     #         evaluate=['data/eval/pof/pof_2_corrected.csv', 3, round(t[0][1], 2), 0.875, 15.0])
         # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 1, 1.0, 7.0])
     #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.053', 2, -2.0, 5.1])
@@ -415,13 +419,17 @@ def main():
     # fit()
     # fit_multiple()
     # fit_all()
-    # heterogenity_scatter()
+    # plot_rssi_dist()
+    # heterogeneity_scatter()
     # eval.plot_localization_error()
 
     # Kalman filter
     # run_kalman_filter_rss()
 
     # kmeans.cluster()
+
+    # print(classifier.train('knn'))
+    # classifier.roc()
 
 
 if __name__ == '__main__':
