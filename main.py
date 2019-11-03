@@ -338,18 +338,19 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
 def main():
 
     # # Train classifier and make predications
-    # # m = classifier.train('knn')
-    # train_x = json.loads(open('data/hist/train_x.json').read())
-    # train_y = json.loads(open('data/hist/train_y.json').read())
-    # test_x = json.loads(open('data/hist/semantic1.json').read())
-    # test_y = json.loads(open('data/hist/truth1.json').read())
-    # # m = hmm.create(train_x) # create or fit then predict
-    # # hmm.predict_all(m, test_x, test_y, 'map')
-    # hmm.train(train_x, train_y, test_x, test_y, alg='map')
+    # m = classifier.train('knn')
+    train_x = json.loads(open('data/hist/train_x.json').read())
+    train_y = json.loads(open('data/hist/train_y.json').read())
+    test_x = json.loads(open('data/hist/semantic1.json').read())
+    test_y = json.loads(open('data/hist/truth1.json').read())
+    # m = hmm.create(train_x) # create or fit then predict
+    # hmm.predict_all(m, test_x, test_y, 'map')
+    hmm.train(train_x, train_y, test_x, test_y,
+              training='labeled', decoder='viterbi')
 
     # Mode 1: Trilateration in real-time
     # while True:
-    #     run(mode='mqtt', record=False, polygons=True, project=True)
+    #     run(mode='mqtt-all', record=False, polygons=True, project=False)
 
     # Mode 2: Replay historical data and parse observations to json
     # t = closest_access_points((1, 7.0))
@@ -381,8 +382,8 @@ def main():
     # with open('outfile', 'wb') as f:
     #     pickle.dump(data, f)
 
-    with open('outfile', 'rb') as f:
-        data = pickle.load(f)
+    # with open('outfile', 'rb') as f:
+    #     data = pickle.load(f)
     # # global usernames
     # # for r in data:
     # #     if r['payload']['mac'] not in dict_of_macs:
@@ -392,16 +393,16 @@ def main():
     # #         else:
     # #             username = 'user'+''.join(random.choices(string.digits, k=3))
     # #         dict_of_macs[r['payload']['mac']] = username
-    window_end = convert_date_to_secs(TRILATERATION['end'])
-    for _ in range(window_start, window_end, TRILATERATION['window_size']):
-        run('replay', data, project=True, polygons=False)
-            #     evaluate=['data/eval/distance/nlos/curve2.csv', 11])
-            #     evaluate=['data/eval/uncertainty_velocity.csv', 0.875, 15.0])
-            #         #  [-85, 80, -75, -70, -65, -60, -55]
-            # evaluate=['data/eval/threshold/full.csv', TRILATERATION['rss_threshold'],
-            #  9, -2.4, 1.76])
+    # window_end = convert_date_to_secs(TRILATERATION['end'])
+    # for _ in range(window_start, window_end, TRILATERATION['window_size']):
+    #     run('replay', data, project=True, polygons=False)
+    #     evaluate=['data/eval/distance/nlos/curve2.csv', 11])
+    #     evaluate=['data/eval/uncertainty_velocity.csv', 0.875, 15.0])
+    #         #  [-85, 80, -75, -70, -65, -60, -55]
+    # evaluate=['data/eval/threshold/full.csv', TRILATERATION['rss_threshold'],
+    #  9, -2.4, 1.76])
     #         evaluate=['data/eval/pof/pof_2_corrected.csv', 3, round(t[0][1], 2), 0.875, 15.0])
-        # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 1, 1.0, 7.0])
+    # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 1, 1.0, 7.0])
     #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.053', 2, -2.0, 5.1])
     #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.056', 3, 3.6, 9.5])
     #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.065', 4, -2.6, 27.0])

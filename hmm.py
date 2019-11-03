@@ -75,7 +75,7 @@ def fit(obs):
     return hmm
 
 
-def train(obs, labels, test_X, test_y, alg):
+def train(obs, labels, test_X, test_y, training, decoder):
     """
     Supervised HMM
     """
@@ -83,8 +83,9 @@ def train(obs, labels, test_X, test_y, alg):
     y, _ = tidy_data(labels)
     z, len_z = tidy_data(test_X)
     w, _ = tidy_data(test_y)
-    # hmm = HiddenMarkovModel.from_samples(
-    #     DiscreteDistribution, n_components=len(STATES), X=np.atleast_2d(X).T, labels=np.atleast_2d(y).T)
+    # model = HiddenMarkovModel.from_samples(
+    #     DiscreteDistribution, n_components=len(STATES), X=np.atleast_2d(X).T,
+    #      labels=np.atleast_2d(y).T, algorithm=training)
     start_prob = np.full(len(STATES), 1/len(STATES))
     trans_prob = np.array([
         [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],
@@ -116,14 +117,24 @@ def train(obs, labels, test_X, test_y, alg):
     d8 = DiscreteDistribution(
         {0: 0.1, 1: 0.4, 2: 0.1, 3: 0.1, 4: 0.075, 5: 0.075, 6: 0.1, 7: 0.075, 8: 0.5})
     dists = [d0, d1, d2, d3, d4, d5, d6, d7, d8]
-    hmm = HiddenMarkovModel.from_matrix(trans_prob, dists, start_prob)
-    # hmm.fit(np.atleast_2d(X).T, labels=np.atleast_2d(y).T, algorithm='baum-welch')
-    seq = hmm.predict(z, algorithm=alg)
-    # print(seq)
-    print('dataset 1:', hmm.score(X, y))
-    print('dataset 2:', hmm.score(z, w))
-    plot(test_X, seq, test_y, len_z, alg)
-    return hmm
+    states = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
+    model = HiddenMarkovModel.from_matrix(trans_prob, dists, start_prob, state_names=states)
+    if training == 'labeled':
+        y1 = list(map(str, y))
+        model.fit(np.atleast_2d(X).T, labels=np.atleast_2d(y1).T, algorithm=training)
+    else:
+        model.fit(np.atleast_2d(X).T, algorithm=training)
+    train_seq = model.predict(X, algorithm=decoder)
+    test_seq = model.predict(z, algorithm=decoder)
+    if decoder == 'viterbi':
+        train_seq = train_seq[1:]
+        test_seq = test_seq[1:]
+    print('%s training and %s decoder' % (training, decoder))
+    print('Training data:', accuracy_score(train_seq, y))
+    print('Test data:', accuracy_score(test_seq, w))
+    # plot(obs, train_seq, labels, len_z, training) # training data
+    plot(test_X, test_seq, test_y, len_z, training)
+    return model
 
 
 def testing():
@@ -182,10 +193,10 @@ def plot(obs, preds, truth, len_X, alg):
     X, len_X = tidy_data(obs)
     y, _ = tidy_data(truth)
     obs_labels = [STATES[i] for i in X]
-    pred_labels = [STATES[i] for i in preds[1:]]
+    pred_labels = [STATES[i] for i in preds]
     truth_labels = [STATES[i] for i in y]
-    print('Observation score:', accuracy_score(y, X))
-    print('Prediction score:', accuracy_score(y, preds))
+    print('Localization score:', accuracy_score(y, X))
+    print('HMM score:', accuracy_score(y, preds))
     # plot_confusion_matrix(y, preds, normalize=True,
     #                       title='Truth vs. Predictions')
     # plot_confusion_matrix(X, preds, normalize=True,

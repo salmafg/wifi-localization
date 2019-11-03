@@ -24,10 +24,11 @@ from utils import plot_confusion_matrix
 matplotlib.rcParams.update({
     'font.size': 20,
     'font.family': 'serif',
-    'xtick.labelsize': 'x-small',
-    'ytick.labelsize': 'x-small',
-    'legend.fontsize': 'x-small',
-    'figure.autolayout': True
+    'xtick.labelsize': 'small',
+    'ytick.labelsize': 'small',
+    'legend.fontsize': 'small',
+    'figure.autolayout': True,
+    'figure.figsize': (12, 8)
 })
 
 NORMALIZER = None
@@ -195,29 +196,31 @@ def roc():
 
     # Plot all ROC curves
     plt.figure()
-    plt.plot(fpr["micro"], tpr["micro"],
-             label='micro-average ROC curve (area = {0:0.2f})'
-             ''.format(roc_auc["micro"]),
-             color='deeppink', linestyle=':', linewidth=4)
+    # plt.plot(fpr["micro"], tpr["micro"],
+    #          label='micro-average ROC curve (area = {0:0.2f})'
+    #          ''.format(roc_auc["micro"]),
+    #          color='deeppink', linestyle=':', linewidth=4)
 
-    plt.plot(fpr["macro"], tpr["macro"],
-             label='macro-average ROC curve (area = {0:0.2f})'
-             ''.format(roc_auc["macro"]),
-             color='navy', linestyle=':', linewidth=4)
+    # plt.plot(fpr["macro"], tpr["macro"],
+    #          label='macro-average ROC curve (area = {0:0.2f})'
+    #          ''.format(roc_auc["macro"]),
+    #          color='navy', linestyle=':', linewidth=4)
 
     colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'red',
-                    'purple', 'green', 'black', 'orange', 'violet', 'pink'])
-    for i, color in zip(range(n_classes), colors):
+                    'green', 'orange', 'violet'])
+    for i, color in zip(range(n_classes-1), colors):
         plt.plot(fpr[i], tpr[i], color=color, lw=2,
-                 label='ROC curve of room {0} (area = {1:0.2f})'
+                 label='Room {0} (area = {1:0.2f})'
                  ''.format(STATES[i], roc_auc[i]))
+    plt.plot(fpr[8], tpr[8], color='purple', lw=2,
+            label='Corridor (area = %.2f)' % roc_auc[8])
 
     plt.plot([0, 1], [0, 1], 'k--', lw=2)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Some extension of Receiver operating characteristic to multi-class')
+    # plt.title('Some extension of Receiver operating characteristic to multi-class')
     plt.legend(loc="lower right")
     plt.show()
     return classifier
