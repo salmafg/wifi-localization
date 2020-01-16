@@ -20,11 +20,11 @@ dynamodb = boto3.resource('dynamodb')
 tableIoT = dynamodb.Table('db_demo')
 
 matplotlib.rcParams.update({
-    'font.size': 20,
+    'font.size': 22,
     'font.family': 'serif',
-    'xtick.labelsize': 'xx-small',
-    'ytick.labelsize': 'xx-small',
-    'legend.fontsize': 'xx-small',
+    'xtick.labelsize': 'small',
+    'ytick.labelsize': 'small',
+    'legend.fontsize': 'small',
     'figure.autolayout': True
 })
 
@@ -35,6 +35,25 @@ def distance(p1, p2):
     """
     d = math.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
     return d
+
+
+def compute_uncertainty(history, depth, l_t, t_t, distances):
+    speed_threshold = 0
+    uncertainties = []
+    while history and depth > 0:
+        # closest_aps = sorted(distances)[:3]
+        # avg_ed = statistics.mean(closest_aps)
+        delta_t_1 = t_t - history[len(history)-1][1]
+        d_1 = distance(l_t, history[len(history)-1][0])
+        s_1 = d_1 / delta_t_1.total_seconds()
+        uncertainty = max(d_1+min(distances), TRILATERATION['minimum_uncertainty'])
+        if s_1 <= speed_threshold: # early stopping because already found
+            return uncertainty
+        uncertainties.append(uncertainty)
+        history = history[:len(history)-1]
+        depth = depth - 1
+    uncertainty = round(min(uncertainties), 3)
+    return uncertainty
 
 
 def centroid():

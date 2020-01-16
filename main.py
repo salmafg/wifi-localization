@@ -1,6 +1,5 @@
 import csv
 import json
-import pickle
 import random
 import string
 import subprocess
@@ -14,11 +13,9 @@ import classifier
 import eval
 import gdop
 import hmm
-import kmeans
 from config import *
 from draw import draw
 from fit_data import *
-from kalman_filter import KalmanFilter
 from mqtt import subscriber
 from nls import nls
 from path_loss import log
@@ -45,7 +42,7 @@ with open('data/usernames.csv', 'r') as f:
     usernames = flatten(list(reader))
 
 
-def run(mode, data=None, model=None, record=False, broadcast=False, polygons=False, project=True, evaluate=[]):
+def run(mode, data=None, model=None, record=False, broadcast=False, polygons=False, project=True):
     '''
     Runs localization for multiple mac devices
     '''
@@ -142,11 +139,6 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
                 print('The estimated distance of %s from AP %d of RSS %d is %f' %
                       (user, ap, rss, estimated_distance))
 
-                # print(evaluate) # distance estimation
-                # with open(evaluate[0], 'a') as csv_file:
-                #     writer = csv.writer(csv_file)
-                #     writer.writerow([user, ap, rss, evaluate[1], round(estimated_distance, 3)])
-
         # Points dictionary
         p = {}
         for i in r:
@@ -164,9 +156,8 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
         if len(p3) == 3:
 
             # Trilateration
-            # args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
-            # estimated_localization = trilaterate(*args)
-            estimated_localization = (0, 0)
+            args = (p3[c[0]], p3[c[1]], p3[c[2]], r3[c[0]], r3[c[1]], r3[c[2]])
+            estimated_localization = trilaterate(*args)
             print('Trilateration estimate:', estimated_localization)
 
             # Non-linear least squares
@@ -219,36 +210,17 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
 
             # Move invalid point inside building to a valid location
             room = get_room_by_physical_location(lat, lng)
-            if polygons and room is None:
-                closest_polygon, closest_room = get_closest_polygon(lng, lat)
-                p1, _ = nearest_points(closest_polygon, Point(lng, lat))
-                p1_rel_x = (p1.x - GEO['origin'][1]) / GEO['oneMeterLng']
-                p1_rel_y = (p1.y - GEO['origin'][0]) / GEO['oneMeterLat']
-                corrected_rel_loc = rotate(
-                    (p1_rel_x, p1_rel_y), -GEO['deviation'])
-                d = (Point(corrected_rel_loc)).distance(Point(localization))
-                lng, lat = p1.x, p1.y
-                room = closest_room
-                print('...point was moved %.3fm' % d)
-
-            if evaluate:
-                print(evaluate)
-                with open(evaluate[0], 'a') as csv_file:
-                    writer = csv.writer(csv_file)
-                    # writer.writerow([user] + evaluate[2:len(evaluate)] +
-                    #                 list(localization) + list(corrected_rel_loc) +
-                    #                 [evaluate[1], room, closest_room, uncertainty])
-                    writer.writerow([user]+evaluate[1:3] +
-                                    [len([i for i in dict_of_rss.values() if i > TRILATERATION['rss_threshold']])] +
-                                    evaluate[3:]+list(localization) + list(corrected_rel_loc) + [uncertainty])  # thres
-                    # writer.writerow([user] + evaluate[1:]+
-                    # list(localization) + list(corrected_rel_loc)+ [uncertainty])  # pof
-                    # truth_local = next(
-                    #     item for item in data if item['timestamp'] >= timestamp.timestamp() and item['timestamp'] <= timestamp.timestamp()+TRILATERATION['window_size'])
-                    # rel_x = (truth_local['longitude'] - GEO['origin'][1]) / GEO['oneMeterLng']
-                    # rel_y = (truth_local['latitude'] - GEO['origin'][0]) / GEO['oneMeterLat']
-                    # writer.writerow([rel_x, rel_y]+list(localization)+[distance((rel_x, rel_y), localization)])
-                csv_file.close()
+            # if polygons and room is None:
+            closest_polygon, closest_room = get_closest_polygon(lng, lat)
+            p1, _ = nearest_points(closest_polygon, Point(lng, lat))
+            p1_rel_x = (p1.x - GEO['origin'][1]) / GEO['oneMeterLng']
+            p1_rel_y = (p1.y - GEO['origin'][0]) / GEO['oneMeterLat']
+            corrected_rel_loc = rotate(
+                (p1_rel_x, p1_rel_y), -GEO['deviation'])
+            d = (Point(corrected_rel_loc)).distance(Point(localization))
+            lng, lat = p1.x, p1.y
+            room = closest_room
+            print('...point was moved %.3fm' % d)
 
             # Machine learning prediction
             if model is not None:
@@ -307,7 +279,6 @@ def run(mode, data=None, model=None, record=False, broadcast=False, polygons=Fal
                     'timestamp': timestamp.strftime('%d %b %H:%M:%S')
                 }
                 db.child(FIREBASE['table']).child(mac).set(data)
-                # db.child(FIREBASE['table']).push(data)
 
             if broadcast:
                 msg = {
@@ -346,44 +317,15 @@ def main():
     # m = hmm.create(train_x) # create or fit then predict
     # hmm.predict_all(m, test_x, test_y, 'map')
     hmm.train(train_x, train_y, test_x, test_y,
-              training='labeled', decoder='viterbi')
+              training='baum-welch', decoder='map')
 
     # Mode 1: Trilateration in real-time
     # while True:
     #     run(mode='mqtt-all', record=False, polygons=True, project=False)
 
     # Mode 2: Replay historical data and parse observations to json
-    # t = closest_access_points((1, 7.0))
-    # print(t)
-    # x = 28 - len(TRILATERATION['aps'])
-    # print('x =', len(TRILATERATION['aps']))
-    # eval.point_of_failure("data/eval/pof/pof_1.csv")
-    # print(centroid())
-    # plt.figure()
-    # eval.point_of_failure("data/eval/pof/pof_2.csv")
-    # plt.show()
-    # eval.uncertainty("data/eval/threshold/full.csv")
-
-    # eval.localization_error("data/eval/localization/trilat_only.csv")
-    # eval.localization_error("data/eval/localization/nls_trilat.csv")
-    # eval.localization_error("data/eval/localization/wnls_dist_trilat.csv")
-    # eval.localization_error("data/eval/localization/wnls_var_trilat.csv")
-    # eval.localization_error("data/eval/localization/nls_init_0.csv")
-    # eval.localization_error("data/eval/localization/wnls_dist_0.csv")
-    # eval.localization_error("data/eval/localization/wnls_var_0.csv")
-    # eval.localization_error("data/eval/threshold/full.csv")
-
-    # eval.rssi_threshold("data/eval/threshold/full.csv")
-    # eval.localization_error('dubai_local_70.csv')
-    # eval.distance_estimation('data/eval/distance/dlos/curve2.csv', 'data/eval/distance/nlos/curve2.csv')
-
     # data = get_hist_data()
     # print('Data retrieved.')
-    # with open('outfile', 'wb') as f:
-    #     pickle.dump(data, f)
-
-    # with open('outfile', 'rb') as f:
-    #     data = pickle.load(f)
     # # global usernames
     # # for r in data:
     # #     if r['payload']['mac'] not in dict_of_macs:
@@ -395,26 +337,7 @@ def main():
     # #         dict_of_macs[r['payload']['mac']] = username
     # window_end = convert_date_to_secs(TRILATERATION['end'])
     # for _ in range(window_start, window_end, TRILATERATION['window_size']):
-    #     run('replay', data, project=True, polygons=False)
-    #     evaluate=['data/eval/distance/nlos/curve2.csv', 11])
-    #     evaluate=['data/eval/uncertainty_velocity.csv', 0.875, 15.0])
-    #         #  [-85, 80, -75, -70, -65, -60, -55]
-    # evaluate=['data/eval/threshold/full.csv', TRILATERATION['rss_threshold'],
-    #  9, -2.4, 1.76])
-    #         evaluate=['data/eval/pof/pof_2_corrected.csv', 3, round(t[0][1], 2), 0.875, 15.0])
-    # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 1, 1.0, 7.0])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.053', 2, -2.0, 5.1])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.056', 3, 3.6, 9.5])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.065', 4, -2.6, 27.0])
-    #     # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 5, 0.5, 22.5])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.055', 6, -2.8, 9.55])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.059', 7, -2.0, 17.0])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.062', 8, 3.7, 19.2])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.051', 9, -2.4, 1.76])
-    #     # evaluate=['data/eval/wnls_var_0.csv', 'the corridor', 10, 0.0, 1.8])
-    #     # evaluate=['data/eval/wnls_var_0.csv', '00.11.056', 3, 2.342, 8.97])
-    # print(closest_access_points((0.875, 15.0)))
-    # plot_localization(sem_hist)
+    #     run('replay', data, project=True, polygons=False))
 
     # Fit curve
     # fit()
@@ -423,11 +346,6 @@ def main():
     # plot_rssi_dist()
     # heterogeneity_scatter()
     # eval.plot_localization_error()
-
-    # Kalman filter
-    # run_kalman_filter_rss()
-
-    # kmeans.cluster()
 
     # print(classifier.train('knn'))
     # classifier.roc()

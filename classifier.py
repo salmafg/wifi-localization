@@ -22,13 +22,13 @@ from config import ML, STATES
 from utils import plot_confusion_matrix
 
 matplotlib.rcParams.update({
-    'font.size': 20,
+    'font.size': 22,
     'font.family': 'serif',
     'xtick.labelsize': 'small',
     'ytick.labelsize': 'small',
     'legend.fontsize': 'small',
     'figure.autolayout': True,
-    'figure.figsize': (12, 8)
+    # 'figure.figsize': (12, 8)
 })
 
 NORMALIZER = None
@@ -59,21 +59,6 @@ def train(model_type):
     # plt.bar(STATES, counts, width=0.35)
     # plt.show()
 
-    # Compute class weights
-    # cw = list(class_weight.compute_class_weight('balanced', np.unique(y_train), y_train))
-    # cw = dict(enumerate(cw))
-    # over_sample = SMOTE('minority')
-    # X, y = over_sample.fit_sample(X, y)
-    # under_sample = AllKNN('majority')
-    # X, y = under_sample.fit_sample(X, y)
-    # comb_sample = SMOTEENN(random_state=0)
-    # X_sm, y_sm = comb_sample.fit_sample(X, y)
-    # smote_tomek = SMOTETomek(random_state=0)
-    # X, y = smote_tomek.fit_resample(X, y)
-    # cw = list(class_weight.compute_class_weight(
-    #     'balanced', np.unique(y), y))
-    # cw = dict(enumerate(cw))
-
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.5)
     # X_train = X
     # y_train = y
@@ -84,28 +69,21 @@ def train(model_type):
     # plt.bar(STATES, counts, width=0.35)
     # plt.show()
 
-    # if model_type == 'rf':
-    #     classifier = RandomForestClassifier(n_estimators=20)
-    # elif model_type == 'knn':
-    #     classifier = KNeighborsClassifier(n_neighbors=3, weights='distance')
-    # elif model_type == 'svm':
-    #     classifier = SVC(gamma='auto', kernel='poly', probability=True)
-    # elif model_type == 'nb':
-    #     classifier = GaussianNB()
     errors = []
     for k in range(1, 11):
         classifier = KNeighborsClassifier(n_neighbors=k, weights='distance')
-        scores = cross_val_score(classifier, X, y, cv=5)
+        scores = cross_val_score(classifier, X, y, cv=10)
         print('CV Scores:', scores)
         print('Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
         classifier.fit(X_train, y_train)
         print('Score:', classifier.score(X_test, y_test))
         errors.append(scores.mean())
         # plot_confusion_matrix(y_test, classifier.predict(X_test), normalize=True)
+    print(errors)
     plt.figure(figsize=(12.0, 8.0))
     plt.plot(range(1, 11), errors, '-s', ms=10)
-    plt.xlabel('Number of neighbors (k)')
-    plt.ylabel('Average accuracy')
+    plt.xlabel('Number of Neighbors ($k$)')
+    plt.ylabel('Cross-validation Score')
     plt.show()
     return errors
 
@@ -155,7 +133,6 @@ def roc():
     print(y_test.shape)
     classifier = OneVsRestClassifier(
         SVC(gamma='auto', kernel='poly', probability=True))
-        # KNeighborsClassifier(n_neighbors=3))
     y_score = classifier.fit(X_train, y_train).decision_function(X_test)
     # y_score = classifier.fit(X_train, y_train).predict_proba(X_test)
     # y_pred = np.argmax(y_score, axis=1)
@@ -196,16 +173,6 @@ def roc():
 
     # Plot all ROC curves
     plt.figure()
-    # plt.plot(fpr["micro"], tpr["micro"],
-    #          label='micro-average ROC curve (area = {0:0.2f})'
-    #          ''.format(roc_auc["micro"]),
-    #          color='deeppink', linestyle=':', linewidth=4)
-
-    # plt.plot(fpr["macro"], tpr["macro"],
-    #          label='macro-average ROC curve (area = {0:0.2f})'
-    #          ''.format(roc_auc["macro"]),
-    #          color='navy', linestyle=':', linewidth=4)
-
     colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'red',
                     'green', 'orange', 'violet'])
     for i, color in zip(range(n_classes-1), colors):
@@ -214,13 +181,11 @@ def roc():
                  ''.format(STATES[i], roc_auc[i]))
     plt.plot(fpr[8], tpr[8], color='purple', lw=2,
             label='Corridor (area = %.2f)' % roc_auc[8])
-
     plt.plot([0, 1], [0, 1], 'k--', lw=2)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    # plt.title('Some extension of Receiver operating characteristic to multi-class')
     plt.legend(loc="lower right")
     plt.show()
     return classifier

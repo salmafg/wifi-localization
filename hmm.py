@@ -4,9 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from hmmlearn import hmm as hmmlearn
 from pomegranate import *
-from seqlearn import hmm as seqlearn
 from sklearn.metrics import accuracy_score
 
 from config import STATES
@@ -15,7 +13,7 @@ from utils import plot_confusion_matrix
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 matplotlib.rcParams.update({
-    'font.size': 20,
+    'font.size': 24,
     'font.family': 'serif',
     'xtick.labelsize': 'small',
     'ytick.labelsize': 'small',
@@ -24,60 +22,9 @@ matplotlib.rcParams.update({
 })
 
 
-def create(data):
-    """
-    Generic HMM
-    """
-    start_prob = np.full(len(STATES), 1/len(STATES))
-    trans_prob = np.array([
-        [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],
-        [0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],
-        [0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3],
-        [0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.0, 0.3],
-        [0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.0, 0.3],
-        [0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 0.3],
-        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.3],
-        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.7, 0.3],
-        [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2]
-    ])
-    emission_prob = np.array([
-        [0.7, 0.1, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.25],  # 65
-        [0.01, 0.6, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.3],  # 62
-        [0.01, 0.1, 0.7, 0.01, 0.01, 0.01, 0.01, 0.01, 0.3],  # 59
-        [0.01, 0.01, 0.01, 0.6, 0.1, 0.1, 0.01, 0.01, 0.2],  # 56
-        [0.01, 0.01, 0.01, 0.1, 0.6, 0.01, 0.1, 0.01, 0.2],  # 55
-        [0.01, 0.01, 0.01, 0.4, 0.01, 0.6, 0.1, 0.01, 0.4],  # 54
-        [0.01, 0.01, 0.01, 0.01, 0.2, 0.01, 0.5, 0.1, 0.2],  # 53
-        [0.01, 0.01, 0.01, 0.01, 0.01, 0.1, 0.4, 0.5, 0.2],  # 51
-        [0.1, 0.4, 0.1, 0.1, 0.075, 0.075, 0.1, 0.075, 0.5]  # corr
-    ])
-
-    hmm = hmmlearn.MultinomialHMM(n_components=len(
-        STATES), algorithm='map', init_params='ste')
-    hmm.startprob_ = start_prob
-    hmm.transmat_ = trans_prob
-    hmm.emissionprob_ = emission_prob
-
-    X, len_X = tidy_data(data)
-    X = np.atleast_2d(X).T
-    hmm.fit(X, len_X)
-    return hmm
-
-
-def fit(obs):
-    """
-    Unsupervised HMM
-    """
-    X, len_X = tidy_data(obs)
-    X = np.atleast_2d(X).T
-    hmm = hmmlearn.MultinomialHMM(n_components=len(STATES), algorithm='map')
-    hmm.fit(X, len_X)
-    return hmm
-
-
 def train(obs, labels, test_X, test_y, training, decoder):
     """
-    Supervised HMM
+    Supervised/Unsupervised HMM
     """
     X, len_z = tidy_data(obs)
     y, _ = tidy_data(labels)
@@ -133,23 +80,8 @@ def train(obs, labels, test_X, test_y, training, decoder):
     print('Training data:', accuracy_score(train_seq, y))
     print('Test data:', accuracy_score(test_seq, w))
     # plot(obs, train_seq, labels, len_z, training) # training data
-    plot(test_X, test_seq, test_y, len_z, training)
+    plot(test_X, test_seq, test_y, len_z, decoder)
     return model
-
-
-def testing():
-    X = [[1, 1], [1, 2], [2, 2], [3, 4], [4, 4], [4, 3],
-         [1, 2], [1, 2], [2, 2], [3, 2], [4, 2], [2, 3]]
-    y = [[1, 1], [1, 1], [2, 2], [3, 3], [4, 4], [4, 4],
-         [1, 1], [1, 1], [2, 2], [3, 3], [4, 4], [2, 2]]
-    len_X = len(X)*[2]
-    print(y)
-    X = np.atleast_2d(np.ravel(X)).T
-    y = np.atleast_2d(np.ravel(y)).T
-    hmm = seqlearn.MultinomialHMM(decode='bestfirst')
-    hmm.fit(X, y, len_X)
-    print(hmm.predict(X))
-    print(hmm.score(X, y, len_X))
 
 
 def predict_all(hmm, obs, truth, alg):
@@ -228,7 +160,7 @@ def plot(obs, preds, truth, len_X, alg):
     plt.step(truth_df['col1'], truth_df['col2'],
              label="Truth", ms=6, color="g", alpha=0.7)
     plt.step(pred_df['col1'], pred_df['col2'], '--',
-             label="HMM", ms=6, color="orange", alpha=0.7)
+             label="Supervised + MAP", ms=6, color="orange", alpha=0.7)
     plt.legend(loc='best')
     plt.xlabel('Sample')
     plt.ylabel('Room')
@@ -240,7 +172,7 @@ def plot(obs, preds, truth, len_X, alg):
     plt.step(obs_df['col1'], obs_df['col2'], label="Localization",
              ms=6, color="tab:blue", alpha=0.7)
     plt.step(pred_df['col1'], pred_df['col2'], '--',
-             label="HMM", ms=6, color="orange", alpha=0.7)
+             label="Supervised + MAP", ms=6, color="orange", alpha=0.7)
     plt.legend(loc='best')
     plt.xlabel('Sample')
     plt.ylabel('Room')

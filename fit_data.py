@@ -3,6 +3,7 @@ from statistics import mean, median
 
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 import scipy
 from scipy.optimize import curve_fit
@@ -14,7 +15,7 @@ from kalman_filter import KalmanFilter
 from utils import convert_date_to_secs, get_rss_fluctuation
 
 matplotlib.rcParams.update({
-    'font.size': 20,
+    'font.size': 22,
     'font.family': 'serif',
     'xtick.labelsize': 'small',
     'ytick.labelsize': 'small',
@@ -58,12 +59,23 @@ def poly_func(x, a, b, c, d):
 
 
 def plot_rssi_dist():
-    x = np.linspace(-90, -10, 1000)
-    y = scipy.stats.norm.pdf(x, -50, 8)
-    plt.figure(figsize=(12, 8))
-    plt.plot(x, y, color='C0')
-    plt.xlabel('RSSI (dB)')
-    plt.ylabel('Probability density')
+    X = []
+    for ap in range(0, 30):
+        _, x1, _ = get_rss_fluctuation(
+            "4 Oct 2019 16:32", "4 Oct 2019 16:55", ap, "")
+        X += x1
+    plt.figure()
+    # plt.hist(X, bins=30, density=True, histtype='step')
+    bandwidth = 2
+    X = np.array(X)
+    X_d = np.linspace(-100, 0, X.shape[0])
+    kde = KernelDensity(
+        bandwidth=bandwidth, kernel='gaussian').fit(X[:, None])
+    logprob = kde.score_samples(X_d[:, None])
+    plt.fill_between(X_d, np.exp(logprob), alpha=0.2, color='b')
+    plt.xlabel('RSSI (dBm)')
+    plt.ylabel('Probability Density')
+    plt.xlim(-100, 0)
     plt.show()
 
 
@@ -73,21 +85,20 @@ def fit():
     """
 
     # Parse data from config file
-    t, X, _ = get_rss_fluctuation(
-        CURVE['0m_start'], CURVE['12m_end'], CURVE['ap'], CURVE['mac'])
+    t = []
+    X = []
+    for i in range(0, 13):
+        t_temp, X_temp, _ = get_rss_fluctuation(
+            CURVE[str(i)+'m_start'], CURVE[str(i)+'m_end'], CURVE['ap'], CURVE['mac'])
+        t = t + t_temp
+        X = X + X_temp
+    print(len(t), len(X))
 
     # Apply Kalman filter
     kalman = KalmanFilter(0.01, 0.1)
     filtered_X = []
     for p in X:
         filtered_X.append(kalman.filter(int(p)))
-
-    # Plot raw data
-    # plt.figure()
-    # plt.plot(filtered_X, range(0, len(y)))
-    # plt.xlabel('RSSI (dB)')
-    # plt.ylabel('Sample')
-    # plt.show()
 
     time_ranges = []
     for i in range(13):
@@ -97,6 +108,7 @@ def fit():
 
     # Compute average RSSI for every distance
     data = []
+    hist_data = []
     avgs = []
     medians = []
     i = 0
@@ -104,43 +116,83 @@ def fit():
         single_data = []
         for p in t:
             if p in range(s, e):
-                single_data.append(filtered_X[t.index(p)])
-        data.append(single_data)
+                single_data.append(X[t.index(p)])
+        data = data + list(zip(single_data, [i]*len(single_data)))
+        hist_data.append(single_data)
+        i += 1
         medians.append(median(single_data))
         avgs.append(round(mean(single_data), 1))
 
-        # Plot raw data histograms
-        # plt.hist(single_data, bins=20, histtype='bar', label=i)
-        i += 1
+    print(len(X))
+    print(len(data))
+    lengths = [len(x) for x in hist_data]
+    # print(lengths)
+    print(sum(lengths))
+    ticks = [0]
+    for i, l in enumerate(lengths):
+        # print(i, l)
+        ticks.append(sum(lengths[:i+1]))
+    # del ticks[-1]
+    print(ticks)
+
+    # Plot raw data
+    plt.xticks(ticks, range(0, 14))
+    plt.plot(range(0, len(X)), X)
+    plt.ylabel('RSSI (dBm)')
+    plt.xlabel('Distance (m)')
 
     plt.figure()
-    plt.hist(data[:6], bins=30, label=range(0, 6))
-    plt.xlabel('RSSI (dB)')
-    plt.ylabel('Frequency')
-    plt.legend(loc='upper right')
+    plt.hist(hist_data[:6], bins=30, label=range(0, 6), density=True)
+    plt.xlabel('RSSI (dBm)')
+    plt.ylabel('Probability Density')
+    plt.legend()
     # plt.title('RSSI frequencies measured in the first 6 meters')
 
-    # Plot collective RSSI histogram
     plt.figure()
-    plt.hist(X, bins=30)
-    plt.xlabel('RSSI')
+    plt.hist(X, bins=20,
+                density=True, histtype='step')
+    plt.xlabel('RSSI (dB)')
     plt.ylabel('Frequency')
+    bandwidth = 2
+    X = np.array(X)
+    X_d = np.linspace(-75, -25, X.shape[0])
+    kde = KernelDensity(
+        bandwidth=bandwidth, kernel='gaussian').fit(X[:, None])
+    logprob = kde.score_samples(X_d[:, None])
+    plt.fill_between(X_d, np.exp(logprob), alpha=0.2, color='b')
+    plt.xlabel('RSSI (dBm)')
+    plt.ylabel('Probability Density')
+    # plt.legend(loc='upper right')
+
+    # Plot collective RSSI histogram
+    # plt.figure()
+    # plt.hist(X, bins=30)
+    # plt.xlabel('RSSI')
+    # plt.ylabel('Frequency')
 
     # Plot averaged data
+    # plt.figure()
+    # plt.plot(avgs, range(0, len(avgs)))
+
     plt.figure()
-    plt.plot(avgs, range(0, len(avgs)))
+    x, y = zip(*sorted(data, key=lambda x: x[0]))
+    plt.scatter(y, x)
+    popt, _ = curve_fit(log_dist_func, x, y)
 
     # Fit curve
     x, y = zip(*sorted(zip(avgs, range(0, len(avgs)))))
     popt, _ = curve_fit(log_dist_func, x, y)
 
     # Plot curve
-    print(avgs)
-    plt.plot(x, log_dist_func(x, *popt), 'g--',
-             label='fit: RSSI=%5.3f, gamma=%5.3f' % tuple(popt))
-    plt.xlabel('RSSI (dB)')
-    plt.ylabel('Distance (m)')
-    plt.legend()
+    print('Collective RSSI averages: %s' % avgs)
+    x_fit = np.linspace(0, -100, 100)
+    plt.plot(log_dist_func(x_fit, *popt), x_fit, 'g--',
+             label='fit: $PL_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
+    plt.ylabel('RSSI (dBm)')
+    plt.xlabel('Distance (m)')
+    plt.xlim(-1, 25)
+    plt.ylim(-80, 0)
+    plt.legend(loc='upper right')
     plt.show()
 
 
@@ -167,20 +219,22 @@ def fit_multiple():
             filtered_X = []
             for p in X:
                 filtered_X.append(kalman.filter(int(p)))
+        
 
-            # # Plot raw data
-            # plt.figure()
-            # plt.plot(X, range(0, len(X)))
-            # plt.xlabel('RSSI (dB)')
-            # plt.ylabel('Sample')
-            # plt.xlim(-80, -20)
-            # plt.title('Raw data from ap %s for %s' %
-            #           (ap, TRILATERATION['macs'][mac]))
+            # Plot raw data
+            # plt.figure(figsize=(12.0, 8.0))
+            # plt.plot(range(0, len(X)), X)
+            # plt.xlabel('Sample')
+            # plt.ylabel('RSSI (dBm)')
+            # plt.ylim(-75, -25)
+            # # plt.title('Raw data from ap %s for %s' %
+            # #           (ap, TRILATERATION['macs'][mac]))
+            # plt.show()
 
             # Plot filtered data
             # plt.figure()
             # plt.plot(filtered_X, range(0, len(X)))
-            # plt.xlabel('RSSI (dB)')
+            # plt.xlabel('RSSI (dBm)')
             # plt.ylabel('Sample')
             # plt.xlim(-80, -20)
             # plt.title('Filtered data from ap %s for %s' %
@@ -195,30 +249,35 @@ def fit_multiple():
 
             # Compute average RSSI for every distance
             data = []
+            hist_data = []
             avgs = []
             medians = []
+            i = 1
             for s, e in time_ranges:
                 single_data = []
                 for p in t:
                     if p in range(s, e):
-                        single_data.append(filtered_X[t.index(p)])
-                data.append(single_data)
+                        single_data.append(X[t.index(p)])
+                data = data + list(zip(single_data, [i]*len(single_data)))
+                hist_data.append(single_data)
+                i += 2
                 medians.append(median(single_data))
                 avgs.append(round(mean(single_data), 1))
+            # all_data.append(data)
             all_avgs.append(avgs)
             all_medians.append(medians)
 
-            # Color-coded histogram
-            # plt.figure()
-            # plt.hist(data, bins=30, label=distances)
-            # plt.xlabel('RSSI (dB)')
+            # # Color-coded histogram
+            # plt.figure(figsize=(12.0, 8.0))
+            # plt.hist(hist_data, bins=30, label=distances)
+            # plt.xlabel('RSSI (dBm)')
             # plt.ylabel('Frequency')
             # plt.legend(loc='upper right')
-            # plt.xlim(-80, -20)
+            # plt.xlim(-75, -25)
             # # plt.title('RSSI frequencies as detected by ap %s from %s at different distances' %
             # #           (ap, TRILATERATION['macs'][mac]))
 
-            # # # Plot collective RSSI histogram
+            # # Plot collective RSSI histogram
             # plt.figure()
             # plt.hist(filtered_X, bins=30,
             #          density=True, histtype='step')
@@ -236,53 +295,62 @@ def fit_multiple():
             # # grid.fit(X[:, None])
             # # bandwidth = grid.best_params_['bandwidth']
             # bandwidth = 1.5
-            # X_d = np.linspace(-80, -20, X.shape[0])
+            # X_d = np.linspace(-75, -25, X.shape[0])
             # kde = KernelDensity(
             #     bandwidth=bandwidth, kernel='gaussian').fit(X[:, None])
             # logprob = kde.score_samples(X_d[:, None])
             # plt.fill_between(X_d, np.exp(logprob), alpha=0.2, color='b')
-            # plt.xlabel('RSSI (dB)')
-            # plt.ylabel('Probability density')
-            # plt.legend(loc='upper right')
+            # plt.xlabel('RSSI (dBm)')
+            # plt.ylabel('Probability Density')
+            # # plt.legend(loc='upper right')
             # # plt.title('Gaussian kernel estimation of RSSI data from ap %d' % (ap))
 
-            # # Plot averaged data
-            # plt.figure()
-            # plt.plot(avgs, distances, label='averaged RSSI')
+            # # # Plot averaged data
+            # # plt.figure()
+            # # plt.plot(avgs, distances, label='averaged RSSI')
 
-            # # Fit curve
-            # popt, _ = curve_fit(log_dist_func, avgs, distances)
+            # # # Fit curve
+            # # popt, _ = curve_fit(log_dist_func, avgs, distances)
 
-            # # Plot curve
-            # avgs.sort()
-            # print('RSSI averages for ap %s and device %s: %s' %
-            #       (ap, TRILATERATION['macs'][mac], avgs))
-            # plt.plot(avgs, log_dist_func(avgs, *popt), 'g--',
-            #          label='fit: $d_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
-            # plt.xlabel('RSSI (dB)')
-            # plt.ylabel('Distance (m)')
-            # # plt.title('Curve fit for ap %s and device %s' %
-            # #           (ap, TRILATERATION['macs'][mac]))
-            # plt.ylim(0, 12)
-            # plt.legend(loc='upper right')
+            # # # Plot curve
+            # # avgs.sort()
+            # # print('RSSI averages for ap %s and device %s: %s' %
+            # #       (ap, TRILATERATION['macs'][mac], avgs))
+            # # plt.plot(avgs, log_dist_func(avgs, *popt), 'g--',
+            # #          label='fit: $d_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
+            # # plt.xlabel('RSSI (dBm)')
+            # # plt.ylabel('Distance (m)')
+            # # # plt.title('Curve fit for ap %s and device %s' %
+            # # #           (ap, TRILATERATION['macs'][mac]))
+            # # plt.ylim(0, 12)
+            # # plt.legend(loc='upper right')
             # plt.show()
     avged_avgs = []
-    print(np.array(all_medians))
     for i in np.array(all_medians).T:
         avged_avgs.append(mean(i))
+
     plt.figure(figsize=(12.0, 8.0))
-    plt.plot(avged_avgs, distances, label='mean RSSI')
-    x, y = zip(*sorted(zip(avged_avgs, distances)))
+    r, _ = zip(*data)
+    plt.hist(r, bins=300, density=True)
+    plt.xlim(-100, 0)
+
+    plt.figure(figsize=(12.0, 8.0))
+    # plt.plot(avged_avgs, distances, label='mean RSSI')
+    # x, y = zip(*sorted(zip(avged_avgs, distances)))
+    x, y = zip(*sorted(data, key=lambda x: x[0]))
+    plt.scatter(y, x)
     popt, _ = curve_fit(log_dist_func, x, y)
 
     # Plot curve
     print('Collective RSSI averages: %s' % avged_avgs)
-    plt.plot(x, log_dist_func(x, *popt), 'g--',
+    x_fit = np.linspace(0, -100, 100)
+    plt.plot(log_dist_func(x_fit, *popt), x_fit, 'g--',
              label='fit: $d_0$=-%5.3f, $\gamma$=%5.3f' % tuple(popt))
-    plt.xlabel('RSSI (dB)')
-    plt.ylabel('Distance (m)')
+    plt.ylabel('RSSI (dBm)')
+    plt.xlabel('Distance (m)')
     # plt.title('Ultimate curve fit')
-    plt.ylim(0, 12)
+    plt.xlim(0, 12)
+    plt.ylim(-90, 0)
     plt.legend(loc='upper right')
     plt.show()
 
@@ -314,7 +382,7 @@ def fit_all():
             # Data Histogram
             # plt.figure()
             # plt.hist(X, bins=30, label=mac, histtype='step', density=True)
-            # plt.xlabel('RSSI (db)')
+            # plt.xlabel('RSSI (dBm)')
             # plt.ylabel('Frequency')
             # plt.legend()
             # plt.title('Collective RSSI for ap %d' % ap)
@@ -335,8 +403,8 @@ def fit_all():
             logprob = kde.score_samples(X_d[:, None])
             plt.fill_between(X_d, np.exp(logprob), alpha=0.2,
                              label=TRILATERATION['macs'][mac])
-            plt.xlabel('RSSI (dB)')
-            plt.ylabel('Probability density')
+            plt.xlabel('RSSI (dBm)')
+            plt.ylabel('Probability Density')
             plt.legend()
             # plt.title('Kernel estimation for ap %d with bandwidth=%.2f' %
                     #   (ap, bandwidth))
@@ -384,8 +452,8 @@ def fit_all():
             logprob = kde.score_samples(X_d[:, None])
             plt.fill_between(X_d, np.exp(logprob), alpha=0.2,
                             label='AP ' + str(ap))
-            plt.xlabel('RSSI (dB)')
-            plt.ylabel('Probability density')
+            plt.xlabel('RSSI (dBm)')
+            plt.ylabel('Probability Density')
             plt.legend()
             # plt.title('Kernel estimation for device %s with bandwidth=%.2f' %
             #           (mac, bandwidth))
@@ -432,8 +500,8 @@ def heterogeneity_scatter():
             for x, y, color, group in zip(x1_chosen, x2_chosen, colors, distances):
                 plt.scatter(x, y, c=color, label=group, alpha=0.5)
             # plt.title('Scatter plot for ap %i' % ap)
-            plt.xlabel('RSSI from %s (dB)' % TRILATERATION['macs'][mac1])
-            plt.ylabel('RSSI from %s (dB)' % TRILATERATION['macs'][mac2])
+            plt.xlabel('RSSI from %s (dBm)' % TRILATERATION['macs'][mac1])
+            plt.ylabel('RSSI from %s (dBm)' % TRILATERATION['macs'][mac2])
             plt.xlim(-75, -25)
             plt.ylim(-75, -25)
             plt.legend()
