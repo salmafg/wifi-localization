@@ -1,5 +1,4 @@
 TRILATERATION = {
-***REMOVED***
     'macs': {
         '9ad190f7c15b7032b3e63ac8a63e55d661f442977bb70bd7be2518db60fb420a': 'samsung',
         'fca44441db4866567fcf902494b1a4ebf16c5d47ac42cbb5abb66344f4a409a0': 'nikos',
@@ -151,7 +150,7 @@ LOG = {
 }
 
 RSS = {
-***REMOVED***
+    'mac': '***REMOVED***',
     'ap': 55,
     'start': '24 May 2019 16:30',
     'end': '24 May 2019 16:59'
@@ -328,7 +327,7 @@ MQTT = {
 
 CURVE = {
     'ap': 29,
-***REMOVED***
+    'mac': '***REMOVED***',
     '0m_start': '27 Jun 2019 16:42',
     '0m_end': '27 Jun 2019 16:45',
     '1m_start': '27 Jun 2019 16:46',
