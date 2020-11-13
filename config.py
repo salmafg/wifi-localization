@@ -314,9 +314,9 @@ ML = {
 
 MQTT = {
     'endpoint': 'a2yr2xb63ny7rm-ats.iot.us-west-2.amazonaws.com',
-    'rootCA': './certs/***REMOVED***',
+    'rootCA': './certs/root-CA.crt',
     'certificatePath': './certs/effing.cert.pem',
-    'privateKeyPath': './certs/***REMOVED***',
+    'privateKeyPath': './certs/effing.private.key',
     'port': 8883,
     'useWebsocket': False,
     'mode': 'both',
