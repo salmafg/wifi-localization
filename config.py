@@ -1,21 +1,13 @@
 TRILATERATION = {
 ***REMOVED***
     'macs': {
-        ***REMOVED***
-        ***REMOVED***
-        ***REMOVED***
-        ***REMOVED***
-        ***REMOVED***
-        ***REMOVED***
-        ***REMOVED***
-        ***REMOVED***
-        # '9ad190f7c15b7032b3e63ac8a63e55d661f442977bb70bd7be2518db60fb420a': 'samsung',
-        # 'fca44441db4866567fcf902494b1a4ebf16c5d47ac42cbb5abb66344f4a409a0': 'nikos',
-        # '07095a6340783f5222d2332b3f9f8ef77e015516c2fcb237e5900580b77bbe8a': 'tiny',
-        # '11bb121fe1a576f52e301e337de98e9c2921d14ad9c12da7c891fe1a75806254': 'one plus 6',
-        # 'c3d402262004be8e7e751e32c93d8049eb2b644f93e92fbf818eb40e5d3ebe1b': 'nam',
+        '9ad190f7c15b7032b3e63ac8a63e55d661f442977bb70bd7be2518db60fb420a': 'samsung',
+        'fca44441db4866567fcf902494b1a4ebf16c5d47ac42cbb5abb66344f4a409a0': 'nikos',
+        '07095a6340783f5222d2332b3f9f8ef77e015516c2fcb237e5900580b77bbe8a': 'tiny',
+        '11bb121fe1a576f52e301e337de98e9c2921d14ad9c12da7c891fe1a75806254': 'one plus 6',
+        'c3d402262004be8e7e751e32c93d8049eb2b644f93e92fbf818eb40e5d3ebe1b': 'nam',
         '85362b02a0d505c7a3a9aca24e9e480778082adb242ff6dfb49b6acc62375cbb': 'george',
-        # '07fcecdfcc0d6c370b4cb3eca880c65e30337d70ddee856060891d99c2c83673': 'lg'
+        '07fcecdfcc0d6c370b4cb3eca880c65e30337d70ddee856060891d99c2c83673': 'lg'
     },
     'start': '4 Oct 2019 16:32',
     'end': '4 Oct 2019 16:42',
@@ -125,7 +117,6 @@ TRILATERATION = {
         {
             'id': 24,
             'xy': (-2.2, 29.7)
-            # 'xy': (-1.824, -4.12)
         },
         {
             'id': 40,
@@ -147,57 +138,8 @@ TRILATERATION = {
             'id': 39,
             'xy': (-4.3, 6.8)
         }
-    ],
-    # 'aps' :[
-    #     {
-    #         'id': 6,
-    #         'xy': (-30.8, -30)
-    #     },
-    #     {
-    #         'id': 2,
-    #         'xy': (-29.7, -25.5)
-    #     },
-    #     {
-    #         'id': 8,
-    #         'xy': (-24.8, -31.1)
-    #     },
-    #     {
-    #         'id': 3,
-    #         'xy': (-22.2, -23.9)
-    #     },
-    #     {
-    #         'id': 26,
-    #         'xy': (-21.3, -25.3)
-    #     },
-    #     {
-    #         'id': 15,
-    #         'xy': (-2.9, 5.2)
-    #     },
-    #     {
-    #         'id': 12,
-    #         'xy': (-1.8, 0.7)
-    #     },
-    #     {
-    #         'id': 5,
-    #         'xy': (0, 0)
-    #     },
-    #     {
-    #         'id': 13,
-    #         'xy': (5.1, 1.1)
-    #     },
-    #     {
-    #         'id': 27,
-    #         'xy': (5.6, 1.8)
-    #     },
-    #     {
-    #         'id': 25,
-    #         'xy': (8, 10.4)
-    #     },
-    #     {
-    #         'id': 22,
-    #         'xy': (12.3, 11.9)
-    #     }
-    # ]
+    ]
+ }
 }
 
 LOG = {
@@ -216,7 +158,7 @@ RSS = {
 }
 
 FIREBASE = {
-    'apiKey': '***REMOVED***',
+    'apiKey': '',
     'authDomain': 'dynamicml-86ae8.firebaseapp.com',
     'databaseURL': 'https://dynamicml-86ae8.firebaseio.com',
     'storageBucket': 'dynamicml-86ae8.appspot.com',
@@ -224,7 +166,7 @@ FIREBASE = {
 }
 
 GMPLOT = {
-    'apiKey': '***REMOVED***',
+    'apiKey': '',
     'lat': 48.2630651,
     'lng': 11.6673068,
     'zoom': 20
