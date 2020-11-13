@@ -150,7 +150,7 @@ LOG = {
 }
 
 RSS = {
-    'mac': '***REMOVED***',
+    'mac': '',
     'ap': 55,
     'start': '24 May 2019 16:30',
     'end': '24 May 2019 16:59'
@@ -327,7 +327,7 @@ MQTT = {
 
 CURVE = {
     'ap': 29,
-    'mac': '***REMOVED***',
+    'mac': '2c:0e:3d:3c:d2:64',
     '0m_start': '27 Jun 2019 16:42',
     '0m_end': '27 Jun 2019 16:45',
     '1m_start': '27 Jun 2019 16:46',
@@ -359,7 +359,7 @@ CURVE = {
 CURVES = {
     'aps': [28, 32, 33, 36, 37],
     # samsung, tiny phone, george
-    'macs': ['***REMOVED***', 'e8:93:09:1d:b6:08', ***REMOVED***],
+    'macs': ['2c:0e:3d:3c:d2:64', 'e8:93:09:1d:b6:08', 'ec:9b:f3:44:9b:6a'],
     '1m_start': '6 Sep 2019 13:49',
     '1m_end': '6 Sep 2019 13:56',
     '3m_start': '6 Sep 2019 14:07',
