@@ -1,3 +1,5 @@
-# wifi-localization
+# Passive WiFi-based Indoor Localization With Semantic Correction 
 
-Runs on Python>=3.6
+With the growing proliferation of smartphones and the diminishing cost of sensors and high-end devices, there are growing demands for LBSs (Location-based services) in commercial and governmental infrastructures. This thesis explores the methods of noninvasively localizing phones indoors, where people are now spending the majority of their time. We talk about why GPS (Global Positioning Systems) are not used indoors and how Wi-Fi is a more viable option due to its already ubiquitous nature. We implement physical localization using WNLS (Weighted Non-linear Least Squares) and are able to achieve up to a baseline of 1.61 m median resolution. Furthermore, we perform semantic localization through polygon projection, which improves our overall median localization accuracy to 1.38 m. We implement an approach that computes a responsive uncertainty radius through RSSI (received signal strength indicator) and the user's velocity. In addition, we implement and compare the performance of a supervised and an unsupervised HMM (hidden Markov model) in the context of semantic localization correction. Lastly, we implement a low-effort, room-based fingerprinting technique and achieve a cross-validation score of over 91% without any IMU data collection.
+
+https://mediatum.ub.tum.de/node?id=1579221
